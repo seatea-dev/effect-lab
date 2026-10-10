@@ -1,6 +1,6 @@
 # Ticket 1 implementation plan
 
-Status: pending human approval. No application code has been written.
+Status: the user approved this plan and authorized Ticket 1 implementation. Local implementation is complete; independent review and final approval are pending.
 
 ## Outcome
 
@@ -8,9 +8,9 @@ A runnable desktop workspace processes one bundled sample with Threshold and the
 
 ## Prerequisites
 
-Local Git initialization is complete. The branch is main, there are no commits, and origin points to https://github.com/seatea-dev/effect-lab.git. Verify remote privacy and publish the approved issues before recording Ticket 1's actual number. GitHub API access still fails in this environment, so remote verification and issue publication remain pending. The approved issue bodies are prepared locally under .scratch/effect-playground/issues.
+Origin points to https://github.com/seatea-dev/effect-lab.git. After the user restarted with approval-based permissions, authenticated GitHub queries confirmed the private repository, its main default branch, and Ticket 1 at https://github.com/seatea-dev/effect-lab/issues/1. The local publisher record contains all ten issue URLs.
 
-Use main as the initial local branch and an issue-linked feature branch for the implementation. An empty repository has no committed comparison base. Do not manufacture one by committing without approval. Present the initial file set and diff for review; the first baseline commit requires separate final approval. Subsequent slices compare against approved main.
+The comparison baseline is main at 207d0db0d9dd029ca5801d6f18a9d86147a40e4a, titled issue creation. Local branch feature/1-image-to-png was created after plan approval. Changes remain uncommitted. Review tracked changes and untracked application files against this baseline. Do not commit, push, create a PR, merge, or publish without final approval.
 
 ## Work sequence
 
@@ -32,4 +32,4 @@ These boundaries were approved in the specification. Use one failing behavior te
 
 ## Completion evidence
 
-Typecheck, lint, relevant Vitest tests, production build, browser smoke results, actual exported PNG checks, screenshots, and an independent review with no blocking findings. Application checks cannot run until implementation exists. Repository setup and issue publication must be reported separately from local test results.
+Typecheck, lint, relevant Vitest tests, production build, browser smoke results, actual exported PNG checks, screenshots, and an independent review with no blocking findings. See docs/ticket-1-verification.md for local results. Independent review remains pending. CI and deployment configuration have not run on GitHub.
