@@ -1,5 +1,6 @@
 import { effects } from '../definitions/effects'
 import { PAPER_CSS } from '../definitions/palettes'
+import { validateUpload } from './upload'
 import { imageSizes } from './sizing'
 import type { ImageSizes } from './sizing'
 import type { ClientMessage, RenderRequest, RenderSnapshot, WorkerMessage } from './protocol'
@@ -11,12 +12,23 @@ const scope = self as unknown as {
 let instanceId = ''
 let latestRevision = 0
 let desiredSource: RenderSnapshot['source'] | undefined
-let prepared: { source: RenderSnapshot['source']; sizes: ImageSizes; pixels: Uint8ClampedArray } | undefined
+let prepared: { source: RenderSnapshot['source']; sizes: ImageSizes; pixels: Uint8ClampedArray; thumbnail?: Blob } | undefined
 let processed: { key: string; canvas: OffscreenCanvas } | undefined
 let running = false
+let activeAbortController: AbortController | undefined
 const yieldToMessages = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 const isCurrent = (request: RenderRequest) => request.instanceId === instanceId && request.revision === latestRevision
 const sameSource = (a: RenderSnapshot['source'], b?: RenderSnapshot['source']) => a.id === b?.id && a.url === b.url
+
+function waitFor<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) { reject(new DOMException('Image preparation was cancelled.', 'AbortError')); return }
+    const cleanup = () => signal.removeEventListener('abort', cancel)
+    const cancel = () => { cleanup(); reject(new DOMException('Image preparation was cancelled.', 'AbortError')) }
+    signal.addEventListener('abort', cancel, { once: true })
+    promise.then((value) => { cleanup(); resolve(value) }, (error: unknown) => { cleanup(); reject(error) })
+  })
+}
 
 function canvas(width: number, height: number) {
   const output = new OffscreenCanvas(width, height)
@@ -25,11 +37,13 @@ function canvas(width: number, height: number) {
   return { output, context }
 }
 
-async function prepare(request: RenderRequest) {
+async function prepare(request: RenderRequest, signal: AbortSignal) {
   if (prepared && sameSource(prepared.source, request.source)) return prepared
-  const response = await fetch(request.source.url)
-  if (!response.ok) throw new Error('The sample image could not be loaded.')
-  const blob = await response.blob()
+  const response = await waitFor(fetch(request.source.url, { signal }), signal)
+  if (!response.ok) throw new Error('The image could not be loaded. Please try again.')
+  const blob = await waitFor(response.blob(), signal)
+  if (!sameSource(request.source, desiredSource)) return undefined
+  if (request.source.upload) await validateUpload(blob)
   if (!sameSource(request.source, desiredSource)) return undefined
   const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' })
   try {
@@ -40,7 +54,15 @@ async function prepare(request: RenderRequest) {
     context.fillRect(0, 0, output.width, output.height)
     context.drawImage(bitmap, 0, 0, output.width, output.height)
     const pixels = context.getImageData(0, 0, output.width, output.height).data
-    prepared = { source: request.source, sizes, pixels }
+    let thumbnail: Blob | undefined
+    if (request.source.upload) {
+      const scale = Math.min(1, 160 / Math.max(output.width, output.height))
+      const small = canvas(Math.max(1, Math.floor(output.width * scale)), Math.max(1, Math.floor(output.height * scale)))
+      small.context.drawImage(output, 0, 0, small.output.width, small.output.height)
+      thumbnail = await small.output.convertToBlob({ type: 'image/jpeg', quality: 0.8 })
+      if (!sameSource(request.source, desiredSource)) return undefined
+    }
+    prepared = { source: request.source, sizes, pixels, thumbnail }
     processed = undefined
     return prepared
   } finally {
@@ -48,11 +70,13 @@ async function prepare(request: RenderRequest) {
   }
 }
 
-async function process(request: RenderRequest) {
+async function process(request: RenderRequest, abortController: AbortController) {
   const started = performance.now()
+  let preparing = true
   try {
     if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
-    const image = await prepare(request)
+    const image = await prepare(request, abortController.signal)
+    preparing = false
     if (!image || !isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
     const key = JSON.stringify([request.source, request.effectId, request.params])
     if (processed?.key !== key) {
@@ -84,7 +108,7 @@ async function process(request: RenderRequest) {
     if (request.kind === 'preview') {
       const bitmap = await createImageBitmap(processed.canvas)
       if (!isCurrent(request)) { bitmap.close(); scope.postMessage({ type: 'cancelled', request }); return }
-      scope.postMessage({ type: 'preview', request, sizes: image.sizes, bitmap, elapsedMs: performance.now() - started }, [bitmap])
+      scope.postMessage({ type: 'preview', request, sizes: image.sizes, bitmap, thumbnail: image.thumbnail, elapsedMs: performance.now() - started }, [bitmap])
     } else {
       const { width, height } = image.sizes.export
       const { output, context } = canvas(width, height)
@@ -99,9 +123,12 @@ async function process(request: RenderRequest) {
     }
   } catch (error) {
     scope.postMessage(isCurrent(request)
-      ? { type: 'error', request, message: error instanceof Error ? error.message : 'Image processing failed.' }
+      ? { type: 'error', request, stage: preparing ? 'source' : undefined, message: preparing
+        ? `The image could not be prepared. ${error instanceof Error ? error.message : 'Try another image.'}`
+        : error instanceof Error ? error.message : 'Image processing failed.' }
       : { type: 'cancelled', request })
   } finally {
+    if (activeAbortController === abortController) activeAbortController = undefined
     running = false
   }
 }
@@ -122,12 +149,14 @@ scope.onmessage = ({ data }) => {
     })()
   } else if (data.instanceId === instanceId && data.type === 'invalidate') {
     if (data.revision >= latestRevision) {
+      if (data.revision > latestRevision) activeAbortController?.abort()
       latestRevision = data.revision
       desiredSource = data.source
     }
   } else if (data.type === 'render' && data.instanceId === instanceId) {
     if (running) { scope.postMessage({ type: 'error', request: data, message: 'Another image request is still running.' }); return }
     running = true
-    void process(data)
+    activeAbortController = new AbortController()
+    void process(data, activeAbortController)
   }
 }

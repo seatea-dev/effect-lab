@@ -2,7 +2,7 @@
 
 A browser-based digital print studio and personal portfolio project.
 
-Ticket 2 opens on the bundled city photograph with Vintage Dither. Floyd-Steinberg has contrast and fixed palette controls; Threshold and Ink remain available with cutoff and inversion. Both effects support separate resets, a live preview, and PNG export. Other effects, the five-image gallery, uploads, and comparison arrive in later approved tickets. Nothing is published yet.
+Ticket 3 opens on the bundled city photograph with Vintage Dither and adds five sample choices plus one retained upload. Floyd-Steinberg has contrast and fixed palette controls; Threshold and Ink remain available with cutoff and inversion. Both effects support separate resets, a live preview, and PNG export. JPEG, PNG, and WebP uploads up to 20 MB stay in the browser for this visit. Source changes preserve effect settings, and failed uploads retain the previous image. Other effects and comparison arrive in later approved tickets. Nothing is published yet.
 
 ## Run locally
 

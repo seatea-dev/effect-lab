@@ -1,9 +1,9 @@
-import { useRef } from 'react'
-import { ArrowDownToLine, ArrowUpRight, Check, Circle, Contrast, Layers2, LoaderCircle, RotateCcw, SlidersHorizontal, Square, TriangleAlert } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowDownToLine, ArrowUpRight, Check, Circle, Contrast, Layers2, LoaderCircle, RotateCcw, Upload, SlidersHorizontal, Square, TriangleAlert } from 'lucide-react'
 import { effects, presets } from '../definitions/effects'
 import { palettes } from '../definitions/palettes'
 import type { PaletteId } from '../definitions/palettes'
-import { urbanSample } from '../definitions/samples'
+import { samples } from '../definitions/samples'
 import { isModified } from '../session/state'
 import { useStudio } from './useStudio'
 
@@ -11,7 +11,11 @@ const dimensions = (size: { width: number; height: number }) => `${size.width.to
 
 export function App() {
   const canvas = useRef<HTMLCanvasElement>(null)
-  const { session, render, send, retry, exportPng } = useStudio(canvas)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const { session, render, displaySource, retainedUpload, send, upload, retry, exportPng } = useStudio(canvas)
+  const sourceAnnouncementPending = useRef(true)
+  const [imageStatus, setImageStatus] = useState('Loading image.')
+  const selectedSourceId = session.pendingSourceId ?? session.sourceId
   const effect = effects[session.effectId]
   const thresholdParams = session.parametersByEffect.threshold
   const ditherParams = session.parametersByEffect.dither
@@ -20,6 +24,19 @@ export function App() {
   const unavailable = render.phase === 'starting' || render.phase === 'error'
   const modified = isModified(session)
   const selectedPreset = presets.find((preset) => preset.id === session.presetId)
+
+  useEffect(() => {
+    if (session.pendingSourceId) {
+      sourceAnnouncementPending.current = true
+      setImageStatus('Loading selected image.')
+    } else if (session.sourceError) {
+      sourceAnnouncementPending.current = false
+      setImageStatus('')
+    } else if (sourceAnnouncementPending.current && render.phase === 'ready' && render.sizes) {
+      sourceAnnouncementPending.current = false
+      setImageStatus(`${displaySource.name} loaded.`)
+    }
+  }, [displaySource.name, render.phase, render.sizes, session.pendingSourceId, session.sourceError])
 
   return (
     <div className="studio">
@@ -55,18 +72,35 @@ export function App() {
       </aside>
 
       <main className="workspace" aria-label="Image workspace">
-        <div className="workspace-heading"><div><span className="eyebrow">YOUR CANVAS</span><h1>{urbanSample.name}</h1></div><span className="sample-tag">SAMPLE / 01</span></div>
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{imageStatus}</div>
+        <div className="workspace-heading"><div><span className="eyebrow">YOUR CANVAS</span><h1 title={displaySource.name}>{displaySource.name}</h1></div><span className="sample-tag">{displaySource.subject.toUpperCase()}</span></div>
         <div className="preview-stage" aria-busy={busy}>
           <div className="registration registration-tl" /><div className="registration registration-tr" /><div className="registration registration-bl" /><div className="registration registration-br" />
-          <canvas ref={canvas} className={`preview ${render.sizes ? 'visible' : ''}`} width={1200} height={720} aria-label={`${urbanSample.name}, processed with ${effect.name}`} />
+          <canvas ref={canvas} className={`preview ${render.sizes ? 'visible' : ''}`} width={1200} height={720} aria-label={`${displaySource.name}, processed with ${effect.name}`} />
           {!render.sizes && <div className="preview-placeholder"><Contrast size={36} strokeWidth={1} /><p>{render.phase === 'error' ? 'Your canvas is waiting.' : 'Preparing your canvas.'}</p></div>}
           {busy && <div className="render-indicator"><LoaderCircle className="spin" size={14} />{render.phase === 'starting' ? 'Preparing image' : 'Updating preview'}</div>}
         </div>
         <div className="preview-meta"><span><span className="status-dot" />{busy ? 'UPDATING' : render.phase === 'error' ? 'PREVIEW PAUSED' : 'LIVE PREVIEW'}</span><span>{render.sizes ? dimensions(render.sizes.analysis) : '—'}<span className="meta-divider">/</span>FIT TO WORKSPACE</span></div>
+        {session.sourceError && <div className="error-banner" role="alert"><TriangleAlert size={17} /><span>{session.sourceError} Your previous image and settings are retained.</span></div>}
         {render.error && <div className="error-banner" role="alert"><TriangleAlert size={17} /><span>{render.error}</span><button onClick={retry}>Retry</button></div>}
         <section className="source-section" aria-label="Source image">
           <div className="section-heading"><h2>Source image</h2><span>BUNDLED & READY TO EXPLORE</span></div>
-          <div className="source-row"><div className="source-thumbnail"><img src={urbanSample.url} alt={urbanSample.description} /><span><Check size={12} /></span></div><div className="source-description"><strong>Sixth Avenue</strong><span>New York City · Jim Henderson</span><small>{dimensions(urbanSample)} · CC0</small></div><a className="credit-link" href={urbanSample.sourceUrl} target="_blank" rel="noreferrer">Image credit<ArrowUpRight size={13} /></a></div>
+          <div className="sample-gallery">
+            {samples.map((sample) => <button key={sample.id} className={`sample-choice ${selectedSourceId === sample.id ? 'selected' : ''}`} aria-label={`${sample.subject}: ${sample.name}`} aria-pressed={selectedSourceId === sample.id} onClick={() => send({ type: 'source', id: sample.id })}>
+              <img src={sample.thumbnailUrl} alt={sample.description} width={80} height={60} /><span>{sample.subject}</span>
+            </button>)}
+            {retainedUpload && <button className={`sample-choice ${selectedSourceId === retainedUpload.id ? 'selected' : ''}`} aria-label={`Your upload: ${retainedUpload.name}`} aria-pressed={selectedSourceId === retainedUpload.id} onClick={() => send({ type: 'source', id: retainedUpload.id })}>
+              <img src={retainedUpload.thumbnailUrl} alt={retainedUpload.description} width={80} height={60} /><span>Your image</span>
+            </button>}
+            <button className="upload-choice" onClick={() => fileInput.current?.click()}><Upload size={19} /><span>Upload</span></button>
+            <input ref={fileInput} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload image" tabIndex={-1} onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (file) upload(file)
+            }} />
+          </div>
+          <div className="source-details"><span>{displaySource.creator} · {displaySource.license}</span>{displaySource.sourceUrl && <a className="credit-link" href={displaySource.sourceUrl} target="_blank" rel="noreferrer">Image credit<ArrowUpRight size={13} /></a>}</div>
+          <p className="upload-hint">JPEG, PNG or WebP · up to 20 MB · stays on your device</p>
         </section>
       </main>
 
@@ -90,7 +124,7 @@ export function App() {
         </fieldset>
         <div className="palette-row"><span>PRINT PALETTE</span><div><span className="palette-chip paper" style={{ backgroundColor: `rgb(${palette.paper.join(',')})` }}><Circle size={10} />PAPER</span><span className="palette-chip ink" style={{ backgroundColor: `rgb(${palette.ink.join(',')})`, color: session.effectId === 'dither' && ditherParams.palette === 'terminal' ? '#101a13' : undefined }}><Square size={9} />INK</span></div></div>
         <div className="reset-row"><button className="text-button" disabled={unavailable} onClick={() => send({ type: 'reset-effect' })}><RotateCcw size={12} />Reset effect</button><button className="text-button" disabled={unavailable || !session.presetId} onClick={() => send({ type: 'reset-preset' })}>Reset preset</button></div>
-        <div className="export-section"><div className="section-heading"><h3>The finished print</h3><ArrowDownToLine size={15} /></div><dl><div><dt>Format</dt><dd>PNG</dd></div><div><dt>Source</dt><dd>{dimensions(render.sizes?.source ?? urbanSample)}</dd></div><div><dt>Export</dt><dd>{render.sizes ? dimensions(render.sizes.export) : 'Preparing…'}</dd></div></dl>{render.sizes?.downscaled && <p className="downscale-notice">Export reduced to fit the 12-megapixel limit. Your image keeps its proportions.</p>}<button className="export-button" onClick={exportPng} disabled={render.phase !== 'ready' || render.exporting}>{render.exporting ? <LoaderCircle className="spin" size={16} /> : <ArrowDownToLine size={16} />}{render.exporting ? 'Preparing PNG…' : 'Export PNG'}<span>↗</span></button><p className="export-caption">Your image. Your device. No cloud.</p><div className="export-notice" role="status">{render.notice}</div></div>
+        <div className="export-section"><div className="section-heading"><h3>The finished print</h3><ArrowDownToLine size={15} /></div><dl><div><dt>Format</dt><dd>PNG</dd></div><div><dt>Source</dt><dd>{dimensions(render.sizes?.source ?? displaySource)}</dd></div><div><dt>Export</dt><dd>{render.sizes ? dimensions(render.sizes.export) : 'Preparing…'}</dd></div></dl>{render.sizes?.downscaled && <p className="downscale-notice">Export reduced to fit the 12-megapixel limit. Your image keeps its proportions.</p>}<button className="export-button" onClick={exportPng} disabled={!!session.pendingSourceId || render.phase !== 'ready' || render.exporting}>{render.exporting ? <LoaderCircle className="spin" size={16} /> : <ArrowDownToLine size={16} />}{render.exporting ? 'Preparing PNG…' : 'Export PNG'}<span>↗</span></button><p className="export-caption">Your image. Your device. No cloud.</p><div className="export-notice" role="status">{render.notice}</div></div>
       </aside>
 
       <footer className="footer"><span>IMPRINT / AN EXERCISE IN SEEING DIFFERENTLY</span><span>MADE FOR THE CURIOUS</span></footer>

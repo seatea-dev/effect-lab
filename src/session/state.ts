@@ -3,6 +3,10 @@ import type { EffectEdit, EffectId, ParametersByEffect } from '../effects/types'
 
 export type Session = {
   sourceId: string
+  pendingSourceId: string | null
+  sourceIntent: number
+  retainedUploadId: string | null
+  sourceError?: string
   effectId: EffectId
   parametersByEffect: ParametersByEffect
   presetId: string | null
@@ -14,11 +18,13 @@ export type SessionAction =
   | { type: 'preset'; id: string }
   | { type: 'effect'; id: EffectId }
   | { type: 'source'; id: string }
+  | { type: 'source-ready'; id: string; intent: number; upload?: boolean }
+  | { type: 'source-failed'; id: string; intent: number; message: string }
   | { type: 'reset-preset' }
   | { type: 'reset-effect' }
 
 export function createSession(sourceId: string): Session {
-  return { sourceId, effectId: vintageDitherPreset.effectId, parametersByEffect: {
+  return { sourceId, pendingSourceId: null, sourceIntent: 0, retainedUploadId: null, effectId: vintageDitherPreset.effectId, parametersByEffect: {
     threshold: { ...effects.threshold.defaults }, dither: { ...vintageDitherPreset.params },
   }, presetId: vintageDitherPreset.id, revision: 1 }
 }
@@ -49,7 +55,13 @@ export function sessionReducer(state: Session, action: SessionAction): Session {
       return { ...next, effectId: preset.effectId, presetId: preset.id, parametersByEffect: { ...state.parametersByEffect, [preset.effectId]: { ...preset.params } } }
     }
     case 'effect': return { ...next, effectId: action.id, presetId: null }
-    case 'source': return { ...next, sourceId: action.id }
+    case 'source': return { ...next, pendingSourceId: action.id, sourceIntent: state.sourceIntent + 1, sourceError: undefined }
+    case 'source-ready':
+      if (action.id !== state.pendingSourceId || action.intent !== state.sourceIntent) return state
+      return { ...state, sourceId: action.id, pendingSourceId: null, retainedUploadId: action.upload ? action.id : state.retainedUploadId }
+    case 'source-failed':
+      if (action.id !== state.pendingSourceId || action.intent !== state.sourceIntent) return state
+      return { ...next, pendingSourceId: null, sourceError: action.message }
     case 'reset-preset': return state.presetId ? sessionReducer(state, { type: 'preset', id: state.presetId }) : state
     case 'reset-effect':
       return { ...next, presetId: null, parametersByEffect: { ...state.parametersByEffect, [state.effectId]: { ...effects[state.effectId].defaults } } }

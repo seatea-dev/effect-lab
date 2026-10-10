@@ -1,6 +1,11 @@
 import { expect, test } from 'vitest'
 import { createSession, isModified, sessionReducer } from '../src/session/state'
 
+const acceptSource = (state: ReturnType<typeof createSession>, id: string) => {
+  const pending = sessionReducer(state, { type: 'source', id })
+  return sessionReducer(pending, { type: 'source-ready', id, intent: pending.sourceIntent })
+}
+
 const inkSession = () => sessionReducer(createSession('urban'), { type: 'preset', id: 'ink' })
 
 test('customizing Ink keeps its name and source, and Reset Preset restores its settings', () => {
@@ -26,7 +31,7 @@ test('Reset Effect restores built-in values and clears preset association withou
 
 test('source changes preserve modified settings and effect selection remembers them', () => {
   const edited = sessionReducer(inkSession(), { type: 'edit', effectId: 'threshold', params: { cutoff: 80, invert: true } })
-  const switched = sessionReducer(edited, { type: 'source', id: 'fixture' })
+  const switched = acceptSource(edited, 'fixture')
   expect(switched.parametersByEffect.threshold).toEqual({ cutoff: 80, invert: true })
   expect(switched.presetId).toBe('ink')
   const effect = sessionReducer(switched, { type: 'effect', id: 'threshold' })
@@ -66,7 +71,7 @@ test('switching effects remembers each set of values and each reset keeps the so
   session = sessionReducer(session, { type: 'effect', id: 'threshold' })
   expect(session.presetId).toBeNull()
   session = sessionReducer(session, { type: 'edit', effectId: 'threshold', params: { cutoff: 70, invert: true } })
-  session = sessionReducer(session, { type: 'source', id: 'fixture' })
+  session = acceptSource(session, 'fixture')
   session = sessionReducer(session, { type: 'effect', id: 'dither' })
   expect(session.parametersByEffect.dither).toEqual({ contrast: 1.7, palette: 'terminal' })
   expect(session.parametersByEffect.threshold).toEqual({ cutoff: 70, invert: true })
@@ -80,4 +85,50 @@ test('switching effects remembers each set of values and each reset keeps the so
   expect(preset.sourceId).toBe('fixture')
   expect(sessionReducer(preset, { type: 'effect', id: 'dither' }).presetId).toBeNull()
   expect(sessionReducer(preset, { type: 'edit', effectId: 'threshold', params: { cutoff: 255 } })).toBe(preset)
+})
+
+test('a pending source keeps the usable source and latest settings until accepted', () => {
+  let state = createSession('urban')
+  state = sessionReducer(state, { type: 'source', id: 'portrait' })
+  expect(state.sourceId).toBe('urban')
+  expect(state.pendingSourceId).toBe('portrait')
+  const intent = state.sourceIntent
+  state = sessionReducer(state, { type: 'edit', effectId: 'dither', params: { contrast: 1.65 } })
+  state = sessionReducer(state, { type: 'source-ready', id: 'portrait', intent })
+  expect(state.sourceId).toBe('portrait')
+  expect(state.pendingSourceId).toBeNull()
+  expect(state.parametersByEffect.dither.contrast).toBe(1.65)
+  expect(state.presetId).toBe('vintage-dither')
+})
+
+test('failed replacement keeps the retained upload and restores the source with latest settings', () => {
+  let state = sessionReducer(createSession('urban'), { type: 'source', id: 'upload-a' })
+  state = sessionReducer(state, { type: 'source-ready', id: 'upload-a', intent: state.sourceIntent, upload: true })
+  state = sessionReducer(state, { type: 'source', id: 'upload-b' })
+  const intent = state.sourceIntent
+  state = sessionReducer(state, { type: 'edit', effectId: 'dither', params: { contrast: 1.8 } })
+  const revision = state.revision
+  state = sessionReducer(state, { type: 'source-failed', id: 'upload-b', intent, message: 'Could not decode' })
+  expect(state.sourceId).toBe('upload-a')
+  expect(state.retainedUploadId).toBe('upload-a')
+  expect(state.pendingSourceId).toBeNull()
+  expect(state.parametersByEffect.dither.contrast).toBe(1.8)
+  expect(state.revision).toBeGreaterThan(revision)
+  expect(state.sourceError).toBe('Could not decode')
+})
+
+test('obsolete successes and failures cannot replace a newer sample or retained upload', () => {
+  let state = sessionReducer(createSession('urban'), { type: 'source', id: 'upload-a' })
+  const obsolete = state.sourceIntent
+  state = sessionReducer(state, { type: 'source', id: 'nature' })
+  expect(sessionReducer(state, { type: 'source-ready', id: 'upload-a', intent: obsolete, upload: true })).toBe(state)
+  expect(sessionReducer(state, { type: 'source-failed', id: 'upload-a', intent: obsolete, message: 'Late error' })).toBe(state)
+  state = sessionReducer(state, { type: 'source', id: 'upload-a' })
+  expect(sessionReducer(state, { type: 'source-ready', id: 'upload-a', intent: obsolete, upload: true })).toBe(state)
+  state = sessionReducer(state, { type: 'source-ready', id: 'upload-a', intent: state.sourceIntent, upload: true })
+  state = sessionReducer(state, { type: 'source', id: 'upload-b' })
+  state = sessionReducer(state, { type: 'source-ready', id: 'upload-b', intent: state.sourceIntent, upload: true })
+  expect(state.retainedUploadId).toBe('upload-b')
+  state = acceptSource(state, 'nature')
+  expect(state.retainedUploadId).toBe('upload-b')
 })
