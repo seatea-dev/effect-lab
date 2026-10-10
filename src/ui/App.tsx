@@ -1,6 +1,8 @@
 import { useRef } from 'react'
 import { ArrowDownToLine, ArrowUpRight, Check, Circle, Contrast, Layers2, LoaderCircle, RotateCcw, SlidersHorizontal, Square, TriangleAlert } from 'lucide-react'
 import { effects, presets } from '../definitions/effects'
+import { palettes } from '../definitions/palettes'
+import type { PaletteId } from '../definitions/palettes'
 import { urbanSample } from '../definitions/samples'
 import { isModified } from '../session/state'
 import { useStudio } from './useStudio'
@@ -11,7 +13,9 @@ export function App() {
   const canvas = useRef<HTMLCanvasElement>(null)
   const { session, render, send, retry, exportPng } = useStudio(canvas)
   const effect = effects[session.effectId]
-  const params = session.parametersByEffect[session.effectId]
+  const thresholdParams = session.parametersByEffect.threshold
+  const ditherParams = session.parametersByEffect.dither
+  const palette = session.effectId === 'dither' ? palettes[ditherParams.palette] : palettes.ink
   const busy = render.phase === 'starting' || render.phase === 'updating'
   const unavailable = render.phase === 'starting' || render.phase === 'error'
   const modified = isModified(session)
@@ -29,17 +33,19 @@ export function App() {
         <div className="panel-heading"><span>THE TOOLBOX</span><span>01</span></div>
         <h2>Make an impression.</h2>
         <p className="intro">A little less detail.<br />A little more character.</p>
-        <div className="section-heading"><h3>Effects</h3><span>1 AVAILABLE</span></div>
+        <div className="section-heading"><h3>Effects</h3><span>{Object.keys(effects).length} AVAILABLE</span></div>
         <nav aria-label="Image effects">
-          <button className="effect-button" aria-pressed onClick={() => send({ type: 'effect', id: effect.id })} disabled={unavailable}>
-            <Contrast size={19} /><span><strong>{effect.name}</strong><small>Light into graphic form</small></span><ArrowUpRight size={15} />
-          </button>
+          {Object.values(effects).map((entry) => (
+            <button key={entry.id} className={`effect-button ${session.effectId === entry.id ? 'selected' : ''}`} aria-pressed={session.effectId === entry.id} onClick={() => send({ type: 'effect', id: entry.id })} disabled={unavailable}>
+              <Contrast size={19} /><span><strong>{entry.name}</strong><small>{entry.id === 'dither' ? 'Tone into printed texture' : 'Light into graphic form'}</small></span><ArrowUpRight size={15} />
+            </button>
+          ))}
         </nav>
         <div className="section-heading preset-heading"><h3>Presets</h3><span>CURATED</span></div>
         <div className="preset-list">
           {presets.map((preset) => (
             <button key={preset.id} className={`preset-card ${session.presetId === preset.id ? 'selected' : ''}`} aria-pressed={session.presetId === preset.id} disabled={unavailable} onClick={() => send({ type: 'preset', id: preset.id })}>
-              <span className="ink-swatch" aria-hidden="true"><span />Aa<span className="swatch-square" /></span>
+              <span className={`ink-swatch ${preset.effectId === 'dither' ? 'vintage-swatch' : ''}`} aria-hidden="true"><span />{preset.effectId === 'dither' ? 'Dd' : 'Aa'}<span className="swatch-square" /></span>
               <span className="preset-caption"><strong>{preset.name}</strong><span>{session.presetId === preset.id && <Check size={13} />} TWO TONES</span></span>
             </button>
           ))}
@@ -69,13 +75,20 @@ export function App() {
         <div className="active-effect"><div><span className="eyebrow">ACTIVE EFFECT</span><h2>{effect.name}</h2></div><Contrast size={24} strokeWidth={1.5} /></div>
         <p className="effect-description">{effect.description}</p>
         <div className="preset-status"><span>{selectedPreset ? `${selectedPreset.name.toUpperCase()} PRESET` : 'EFFECT SETTINGS'}</span>{modified && <span className="modified">Modified</span>}</div>
-        <fieldset className="parameters" disabled={unavailable}><legend className="sr-only">Threshold parameters</legend>
-          <div className="slider-label"><label htmlFor="cutoff">Cutoff</label><output htmlFor="cutoff">{params.cutoff}</output></div>
-          <input id="cutoff" type="range" min={effect.controls.cutoff.min} max={effect.controls.cutoff.max} step={effect.controls.cutoff.step} value={params.cutoff} onChange={(event) => send({ type: 'edit', params: { cutoff: Number(event.target.value) } })} style={{ '--range-progress': `${params.cutoff / 255 * 100}%` } as React.CSSProperties} />
-          <div className="range-caption"><span>MORE LIGHT</span><span>MORE INK</span></div>
-          <div className="toggle-row"><label htmlFor="invert"><strong>Invert tones</strong><span>Exchange ink and paper</span></label><input id="invert" className="toggle" type="checkbox" checked={params.invert} onChange={(event) => send({ type: 'edit', params: { invert: event.target.checked } })} /></div>
+        <fieldset className="parameters" disabled={unavailable}><legend className="sr-only">{effect.name} parameters</legend>
+          {session.effectId === 'threshold' ? <>
+            <div className="slider-label"><label htmlFor="cutoff">Cutoff</label><output htmlFor="cutoff">{thresholdParams.cutoff}</output></div>
+            <input id="cutoff" type="range" min={effects.threshold.controls.cutoff.min} max={effects.threshold.controls.cutoff.max} step={effects.threshold.controls.cutoff.step} value={thresholdParams.cutoff} onChange={(event) => send({ type: 'edit', effectId: 'threshold', params: { cutoff: Number(event.target.value) } })} style={{ '--range-progress': `${thresholdParams.cutoff / 255 * 100}%` } as React.CSSProperties} />
+            <div className="range-caption"><span>MORE LIGHT</span><span>MORE INK</span></div>
+            <div className="toggle-row"><label htmlFor="invert"><strong>Invert tones</strong><span>Exchange ink and paper</span></label><input id="invert" className="toggle" type="checkbox" checked={thresholdParams.invert} onChange={(event) => send({ type: 'edit', effectId: 'threshold', params: { invert: event.target.checked } })} /></div>
+          </> : <>
+            <div className="slider-label"><label htmlFor="contrast">Contrast</label><output htmlFor="contrast">{ditherParams.contrast.toFixed(2)}</output></div>
+            <input id="contrast" type="range" min={effects.dither.controls.contrast.min} max={effects.dither.controls.contrast.max} step={effects.dither.controls.contrast.step} value={ditherParams.contrast} onChange={(event) => send({ type: 'edit', effectId: 'dither', params: { contrast: Number(event.target.value) } })} style={{ '--range-progress': `${(ditherParams.contrast - 0.5) / 1.5 * 100}%` } as React.CSSProperties} />
+            <div className="range-caption"><span>SOFTER</span><span>STRONGER</span></div>
+            <div className="palette-select"><label htmlFor="palette">Palette</label><select id="palette" value={ditherParams.palette} onChange={(event) => send({ type: 'edit', effectId: 'dither', params: { palette: event.target.value as PaletteId } })}>{effects.dither.controls.palette.values.map((id) => <option key={id} value={id}>{palettes[id].name}</option>)}</select></div>
+          </>}
         </fieldset>
-        <div className="palette-row"><span>PRINT PALETTE</span><div><span className="palette-chip paper"><Circle size={10} />PAPER</span><span className="palette-chip ink"><Square size={9} />INK</span></div></div>
+        <div className="palette-row"><span>PRINT PALETTE</span><div><span className="palette-chip paper" style={{ backgroundColor: `rgb(${palette.paper.join(',')})` }}><Circle size={10} />PAPER</span><span className="palette-chip ink" style={{ backgroundColor: `rgb(${palette.ink.join(',')})`, color: session.effectId === 'dither' && ditherParams.palette === 'terminal' ? '#101a13' : undefined }}><Square size={9} />INK</span></div></div>
         <div className="reset-row"><button className="text-button" disabled={unavailable} onClick={() => send({ type: 'reset-effect' })}><RotateCcw size={12} />Reset effect</button><button className="text-button" disabled={unavailable || !session.presetId} onClick={() => send({ type: 'reset-preset' })}>Reset preset</button></div>
         <div className="export-section"><div className="section-heading"><h3>The finished print</h3><ArrowDownToLine size={15} /></div><dl><div><dt>Format</dt><dd>PNG</dd></div><div><dt>Source</dt><dd>{dimensions(render.sizes?.source ?? urbanSample)}</dd></div><div><dt>Export</dt><dd>{render.sizes ? dimensions(render.sizes.export) : 'Preparing…'}</dd></div></dl>{render.sizes?.downscaled && <p className="downscale-notice">Export reduced to fit the 12-megapixel limit. Your image keeps its proportions.</p>}<button className="export-button" onClick={exportPng} disabled={render.phase !== 'ready' || render.exporting}>{render.exporting ? <LoaderCircle className="spin" size={16} /> : <ArrowDownToLine size={16} />}{render.exporting ? 'Preparing PNG…' : 'Export PNG'}<span>↗</span></button><p className="export-caption">Your image. Your device. No cloud.</p><div className="export-notice" role="status">{render.notice}</div></div>
       </aside>

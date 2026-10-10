@@ -57,14 +57,25 @@ async function process(request: RenderRequest) {
     const key = JSON.stringify([request.source, request.effectId, request.params])
     if (processed?.key !== key) {
       const { width, height } = image.sizes.analysis
-      const pixels = new Uint8ClampedArray(image.pixels.length)
-      // Coarse row batches keep cancellation responsive without a scheduler framework.
-      for (let row = 0; row < height; row += 64) {
-        const start = row * width * 4
-        const end = Math.min(height, row + 64) * width * 4
-        pixels.set(effects[request.effectId].process(image.pixels.subarray(start, end), request.params), start)
-        await yieldToMessages()
-        if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+      let pixels: Uint8ClampedArray<ArrayBuffer>
+      if (request.effectId === 'dither') {
+        const job = effects.dither.process(image.pixels, width, request.params)
+        let result = job.next()
+        while (!result.done) {
+          await yieldToMessages()
+          if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+          result = job.next()
+        }
+        pixels = result.value
+      } else {
+        pixels = new Uint8ClampedArray(image.pixels.length)
+        for (let row = 0; row < height; row += 64) {
+          const start = row * width * 4
+          const end = Math.min(height, row + 64) * width * 4
+          pixels.set(effects.threshold.process(image.pixels.subarray(start, end), request.params), start)
+          await yieldToMessages()
+          if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+        }
       }
       const { output, context } = canvas(width, height)
       context.putImageData(new ImageData(pixels, width, height), 0, 0)

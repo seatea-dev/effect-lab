@@ -142,3 +142,13 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 9px; border-radius: 50
   .export-section { padding-top: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+.effect-button { margin-bottom: 8px; }
+.effect-button:not(.selected) { background: #1b1f1b; border-color: #323931; color: #b4bba8; }
+.preset-card + .preset-card { margin-top: 10px; }
+.vintage-swatch { background: #e4d5b7; color: #483b32; }
+.vintage-swatch > span:first-child, .vintage-swatch .swatch-square { background: #483b32; }
+.palette-select { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.palette-select label { font-size: 12px; }
+.palette-select select { font: inherit; font-size: 11px; color: #e7eae3; border: 1px solid #48513e; background: #20271c; border-radius: 4px; padding: 7px 10px; }
+.palette-select select:focus-visible { outline: 2px solid #d7f56d; outline-offset: 4px; }

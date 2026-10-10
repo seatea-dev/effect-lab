@@ -2,7 +2,7 @@
 
 A browser-based digital print studio and personal portfolio project.
 
-Ticket 1 provides one bundled city photograph, Threshold processing, the Ink preset, cutoff/inversion controls, separate reset actions, a live preview, and PNG export. Other effects, the five-image gallery, uploads, and comparison arrive in later approved tickets. Nothing is published yet.
+Ticket 2 opens on the bundled city photograph with Vintage Dither. Floyd-Steinberg has contrast and fixed palette controls; Threshold and Ink remain available with cutoff and inversion. Both effects support separate resets, a live preview, and PNG export. Other effects, the five-image gallery, uploads, and comparison arrive in later approved tickets. Nothing is published yet.
 
 ## Run locally
 
@@ -35,7 +35,7 @@ The production preview also lives at `/effect-lab/`. No environment variables, A
 
 The worker prepares a source once, using a maximum 1200-pixel analysis edge. Preview and PNG export use the same processed analysis raster. Export scales its discrete marks with nearest-neighbor sampling, preserving the pattern at the source dimensions within a provisional 12-megapixel cap. It does not add photographic detail beyond the analysis image.
 
-The controller allows one running request and one replaceable pending preview. Setting changes invalidate running results synchronously. The worker yields between row batches, and both sides reject results from obsolete revisions or requests. PNG results receive the same checks after encoding and before download. There is no worker pool, render graph, or persistent cache.
+The controller allows one running request and one replaceable pending preview. Setting changes invalidate running results synchronously. Dither carries floating-point diffusion errors across row batches in one resumable job. The worker yields between row batches, and both sides reject results from obsolete revisions or requests. PNG results receive the same checks after encoding and before download. There is no worker pool, render graph, or persistent cache.
 
 The application needs module workers, bitmap decoding, and OffscreenCanvas 2D/PNG support. A startup handshake checks the worker's actual capabilities. Unsupported environments show a recoverable explanation. Only browsers actually tested should be claimed as verified.
 

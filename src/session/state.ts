@@ -1,16 +1,16 @@
-import { effects, getPreset } from '../definitions/effects'
-import type { EffectId, ThresholdParams } from '../effects/types'
+import { effects, getPreset, vintageDitherPreset } from '../definitions/effects'
+import type { EffectEdit, EffectId, ParametersByEffect } from '../effects/types'
 
 export type Session = {
   sourceId: string
   effectId: EffectId
-  parametersByEffect: Record<EffectId, ThresholdParams>
+  parametersByEffect: ParametersByEffect
   presetId: string | null
   revision: number
 }
 
 export type SessionAction =
-  | { type: 'edit'; params: Partial<ThresholdParams> }
+  | ({ type: 'edit' } & EffectEdit)
   | { type: 'preset'; id: string }
   | { type: 'effect'; id: EffectId }
   | { type: 'source'; id: string }
@@ -18,22 +18,32 @@ export type SessionAction =
   | { type: 'reset-effect' }
 
 export function createSession(sourceId: string): Session {
-  const preset = getPreset('ink')
-  return { sourceId, effectId: 'threshold', parametersByEffect: { threshold: { ...preset.params } }, presetId: preset.id, revision: 1 }
+  return { sourceId, effectId: vintageDitherPreset.effectId, parametersByEffect: {
+    threshold: { ...effects.threshold.defaults }, dither: { ...vintageDitherPreset.params },
+  }, presetId: vintageDitherPreset.id, revision: 1 }
 }
 
 export function isModified(session: Session): boolean {
   if (!session.presetId) return false
   const preset = getPreset(session.presetId)
-  const params = session.parametersByEffect[session.effectId]
+  if (preset.effectId !== session.effectId) return true
+  if (preset.effectId === 'dither') {
+    const params = session.parametersByEffect.dither
+    return params.contrast !== preset.params.contrast || params.palette !== preset.params.palette
+  }
+  const params = session.parametersByEffect.threshold
   return params.cutoff !== preset.params.cutoff || params.invert !== preset.params.invert
 }
 
 export function sessionReducer(state: Session, action: SessionAction): Session {
   const next = { ...state, revision: state.revision + 1 }
   switch (action.type) {
-    case 'edit':
-      return { ...next, parametersByEffect: { ...state.parametersByEffect, [state.effectId]: { ...state.parametersByEffect[state.effectId], ...action.params } } }
+    case 'edit': {
+      if (action.effectId !== state.effectId) return state
+      const params = action.effectId === 'dither' && action.params.contrast !== undefined
+        ? { ...action.params, contrast: Math.round(action.params.contrast * 20) / 20 } : action.params
+      return { ...next, parametersByEffect: { ...state.parametersByEffect, [action.effectId]: { ...state.parametersByEffect[action.effectId], ...params } } }
+    }
     case 'preset': {
       const preset = getPreset(action.id)
       return { ...next, effectId: preset.effectId, presetId: preset.id, parametersByEffect: { ...state.parametersByEffect, [preset.effectId]: { ...preset.params } } }

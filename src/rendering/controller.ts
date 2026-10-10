@@ -48,7 +48,7 @@ export class RenderController {
 
   update(snapshot: RenderSnapshot): void {
     if (this.disposed) return
-    this.current = { ...snapshot, params: { ...snapshot.params }, source: { ...snapshot.source } }
+    this.current = structuredClone(snapshot)
     this.pending = this.current
     this.port.postMessage({ type: 'invalidate', instanceId: this.instanceId, revision: snapshot.revision, source: snapshot.source })
     this.emit({ phase: this.ready ? 'updating' : 'starting', exporting: false, error: undefined,

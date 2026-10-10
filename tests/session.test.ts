@@ -1,9 +1,11 @@
 import { expect, test } from 'vitest'
 import { createSession, isModified, sessionReducer } from '../src/session/state'
 
+const inkSession = () => sessionReducer(createSession('urban'), { type: 'preset', id: 'ink' })
+
 test('customizing Ink keeps its name and source, and Reset Preset restores its settings', () => {
-  const original = createSession('urban')
-  const edited = sessionReducer(original, { type: 'edit', params: { cutoff: 180 } })
+  const original = inkSession()
+  const edited = sessionReducer(original, { type: 'edit', effectId: 'threshold', params: { cutoff: 180 } })
   expect(edited.sourceId).toBe('urban')
   expect(edited.presetId).toBe('ink')
   expect(isModified(edited)).toBe(true)
@@ -15,7 +17,7 @@ test('customizing Ink keeps its name and source, and Reset Preset restores its s
 })
 
 test('Reset Effect restores built-in values and clears preset association without changing the source', () => {
-  const edited = sessionReducer(createSession('urban'), { type: 'edit', params: { cutoff: 200, invert: true } })
+  const edited = sessionReducer(inkSession(), { type: 'edit', effectId: 'threshold', params: { cutoff: 200, invert: true } })
   const reset = sessionReducer(edited, { type: 'reset-effect' })
   expect(reset.parametersByEffect.threshold).toEqual({ cutoff: 128, invert: false })
   expect(reset.presetId).toBeNull()
@@ -23,7 +25,7 @@ test('Reset Effect restores built-in values and clears preset association withou
 })
 
 test('source changes preserve modified settings and effect selection remembers them', () => {
-  const edited = sessionReducer(createSession('urban'), { type: 'edit', params: { cutoff: 80, invert: true } })
+  const edited = sessionReducer(inkSession(), { type: 'edit', effectId: 'threshold', params: { cutoff: 80, invert: true } })
   const switched = sessionReducer(edited, { type: 'source', id: 'fixture' })
   expect(switched.parametersByEffect.threshold).toEqual({ cutoff: 80, invert: true })
   expect(switched.presetId).toBe('ink')
@@ -34,7 +36,48 @@ test('source changes preserve modified settings and effect selection remembers t
 })
 
 test('returning edited values to the preset clears Modified and reloading starts fresh', () => {
-  const edited = sessionReducer(createSession('urban'), { type: 'edit', params: { cutoff: 180 } })
-  expect(isModified(sessionReducer(edited, { type: 'edit', params: { cutoff: 140 } }))).toBe(false)
-  expect(createSession('urban').parametersByEffect.threshold).toEqual({ cutoff: 140, invert: false })
+  const edited = sessionReducer(inkSession(), { type: 'edit', effectId: 'threshold', params: { cutoff: 180 } })
+  expect(isModified(sessionReducer(edited, { type: 'edit', effectId: 'threshold', params: { cutoff: 140 } }))).toBe(false)
+  expect(createSession('urban').parametersByEffect.dither).toEqual({ contrast: 1.2, palette: 'vintage' })
+})
+
+test('a fresh session starts with Vintage Dither and other effects use built-in defaults', () => {
+  const session = createSession('urban')
+  expect(session.sourceId).toBe('urban')
+  expect(session.effectId).toBe('dither')
+  expect(session.presetId).toBe('vintage-dither')
+  expect(session.parametersByEffect.dither).toEqual({ contrast: 1.2, palette: 'vintage' })
+  expect(session.parametersByEffect.threshold).toEqual({ cutoff: 128, invert: false })
+})
+
+test('dither edits normalize contrast and retain Modified until preset values return', () => {
+  const original = createSession('urban')
+  const edited = sessionReducer(original, { type: 'edit', effectId: 'dither', params: { contrast: 1.2000000000000002 } })
+  expect(edited.parametersByEffect.dither.contrast).toBe(1.2)
+  expect(isModified(edited)).toBe(false)
+  const changed = sessionReducer(edited, { type: 'edit', effectId: 'dither', params: { contrast: 1.55, palette: 'terminal' } })
+  expect(changed.presetId).toBe('vintage-dither')
+  expect(isModified(changed)).toBe(true)
+  expect(sessionReducer(changed, { type: 'reset-preset' }).parametersByEffect.dither).toEqual({ contrast: 1.2, palette: 'vintage' })
+})
+
+test('switching effects remembers each set of values and each reset keeps the source', () => {
+  let session = sessionReducer(createSession('urban'), { type: 'edit', effectId: 'dither', params: { contrast: 1.7, palette: 'terminal' } })
+  session = sessionReducer(session, { type: 'effect', id: 'threshold' })
+  expect(session.presetId).toBeNull()
+  session = sessionReducer(session, { type: 'edit', effectId: 'threshold', params: { cutoff: 70, invert: true } })
+  session = sessionReducer(session, { type: 'source', id: 'fixture' })
+  session = sessionReducer(session, { type: 'effect', id: 'dither' })
+  expect(session.parametersByEffect.dither).toEqual({ contrast: 1.7, palette: 'terminal' })
+  expect(session.parametersByEffect.threshold).toEqual({ cutoff: 70, invert: true })
+  const reset = sessionReducer(session, { type: 'reset-effect' })
+  expect(reset.parametersByEffect.dither).toEqual({ contrast: 1, palette: 'ink' })
+  expect(reset.presetId).toBeNull()
+  expect(reset.sourceId).toBe('fixture')
+  const preset = sessionReducer(reset, { type: 'preset', id: 'vintage-dither' })
+  expect(preset.parametersByEffect.dither).toEqual({ contrast: 1.2, palette: 'vintage' })
+  expect(preset.parametersByEffect.threshold).toEqual({ cutoff: 70, invert: true })
+  expect(preset.sourceId).toBe('fixture')
+  expect(sessionReducer(preset, { type: 'effect', id: 'dither' }).presetId).toBeNull()
+  expect(sessionReducer(preset, { type: 'edit', effectId: 'threshold', params: { cutoff: 255 } })).toBe(preset)
 })
