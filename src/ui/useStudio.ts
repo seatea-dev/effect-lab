@@ -8,8 +8,10 @@ import { initialRenderState, renderStateReducer } from './renderState'
 import type { RenderSnapshot, WorkerPort } from '../rendering/protocol'
 
 function snapshot(session: Session): RenderSnapshot {
-  return { revision: session.revision, source: { id: session.sourceId, url: urbanSample.url },
-    effectId: session.effectId, params: session.parametersByEffect[session.effectId] }
+  const source = { id: session.sourceId, url: urbanSample.url }
+  return session.effectId === 'dither'
+    ? { revision: session.revision, source, effectId: 'dither', params: session.parametersByEffect.dither }
+    : { revision: session.revision, source, effectId: 'threshold', params: session.parametersByEffect.threshold }
 }
 
 export function useStudio(canvas: RefObject<HTMLCanvasElement | null>) {

@@ -1,11 +1,9 @@
-import type { EffectId, ThresholdParams } from '../effects/types'
+import type { EffectSelection } from '../effects/types'
 import type { ImageSizes } from './sizing'
 
-export type RenderSnapshot = {
+export type RenderSnapshot = EffectSelection & {
   revision: number
   source: { id: string; url: string }
-  effectId: EffectId
-  params: ThresholdParams
 }
 export type RenderRequest = RenderSnapshot & { type: 'render'; instanceId: string; requestId: number; kind: 'preview' | 'export' }
 export type ClientMessage = RenderRequest | { type: 'hello'; instanceId: string } | { type: 'invalidate'; instanceId: string; revision: number; source: RenderSnapshot['source'] }
