@@ -124,6 +124,24 @@ test('a current preview failure prevents export and can be retried without new s
   expect(previews).toEqual([1])
 })
 
+test('gallery navigation keeps worker failure recoverable until the worker restarts', () => {
+  const { port, controller, states, flush } = setup()
+  controller.update(snapshot(1)); flush()
+  port.reply({ type: 'preview', request: lastRequest(port), sizes, elapsedMs: 10, bitmap: { close: () => {} } as ImageBitmap })
+  expect(states.at(-1)?.sizes).toEqual(sizes)
+  port.onerror?.({ message: 'Worker crashed' })
+  expect(states.at(-1)?.phase).toBe('error')
+  expect(states.at(-1)?.sizes).toEqual(sizes)
+
+  controller.update({ ...snapshot(2), source: { id: 'portrait', url: '/portrait.jpg' } })
+
+  expect(states.at(-1)?.phase).toBe('error')
+  expect(states.at(-1)?.error).toContain('Retry')
+  expect(states.at(-1)?.sizes).toEqual(sizes)
+  expect(controller.exportPng()).toBe(false)
+  expect(port.sent.filter((message) => message.type === 'render')).toHaveLength(1)
+})
+
 test('an export failure preserves the preview and allows retry', () => {
   const { port, controller, states, flush } = setup()
   controller.update(snapshot(1)); flush()
@@ -192,4 +210,43 @@ test('switching between Threshold and Dither rejects the obsolete preview and er
   port.reply({ type: 'preview', request: ditherRequest, sizes, elapsedMs: 10, bitmap: { close: () => {} } as ImageBitmap })
   expect(previews).toEqual([2])
   expect(controller.exportPng()).toBe(true)
+})
+
+test('source preparation failure restores usable work through the source callback, but render errors offer retry', () => {
+  const port = new Port()
+  const frames: (() => void)[] = []
+  const states: RenderState[] = []
+  const failures: string[] = []
+  const controller = new RenderController(port, {
+    onState: (state) => states.push(state), onPreview: () => {}, onExport: () => {},
+    onSourceError: (request, message) => {
+      failures.push(message)
+      controller.update({ ...snapshot(request.revision + 1), params: { cutoff: 190, invert: false } })
+      return true
+    },
+  }, (callback) => { frames.push(callback); return () => {} })
+  port.reply({ type: 'ready', instanceId: port.sent[0].instanceId })
+  controller.update({ ...snapshot(1), source: { id: 'candidate', url: 'blob:upload' } }); frames.shift()!()
+  port.reply({ type: 'error', request: lastRequest(port), stage: 'source', message: 'Invalid image' })
+  expect(failures).toEqual(['Invalid image'])
+  expect(states.at(-1)?.error).toBeUndefined()
+  frames.shift()!()
+  expect(lastRequest(port).source.id).toBe('urban')
+  expect(lastRequest(port).params).toEqual({ cutoff: 190, invert: false })
+  port.reply({ type: 'error', request: lastRequest(port), message: 'Renderer failed' })
+  expect(failures).toHaveLength(1)
+  expect(states.at(-1)?.phase).toBe('error')
+})
+
+test('a stale source error cannot invoke rollback for the current source', () => {
+  const port = new Port(), frames: (() => void)[] = [], onSourceError = vi.fn(() => true)
+  const controller = new RenderController(port, { onState: () => {}, onPreview: () => {}, onExport: () => {}, onSourceError }, (callback) => { frames.push(callback); return () => {} })
+  port.reply({ type: 'ready', instanceId: port.sent[0].instanceId })
+  controller.update(snapshot(1)); frames.shift()!()
+  const old = lastRequest(port)
+  controller.update({ ...snapshot(2), source: { id: 'portrait', url: '/portrait.jpg' } })
+  port.reply({ type: 'error', request: old, stage: 'source', message: 'Old decode failed' })
+  expect(onSourceError).not.toHaveBeenCalled()
+  frames.shift()!()
+  expect(lastRequest(port).source.id).toBe('portrait')
 })

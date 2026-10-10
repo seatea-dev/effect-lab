@@ -11,7 +11,8 @@ export type RenderState = {
 }
 type Callbacks = {
   onState: (state: RenderState) => void
-  onPreview: (bitmap: ImageBitmap, request: RenderRequest, sizes: ImageSizes) => void
+  onPreview: (bitmap: ImageBitmap, request: RenderRequest, sizes: ImageSizes, thumbnail?: Blob) => void
+  onSourceError?: (request: RenderRequest, message: string) => boolean
   onExport: (blob: Blob, request: RenderRequest) => void
 }
 type Schedule = (callback: () => void) => () => void
@@ -51,7 +52,9 @@ export class RenderController {
     this.current = structuredClone(snapshot)
     this.pending = this.current
     this.port.postMessage({ type: 'invalidate', instanceId: this.instanceId, revision: snapshot.revision, source: snapshot.source })
-    this.emit({ phase: this.ready ? 'updating' : 'starting', exporting: false, error: undefined,
+    const failed = !this.ready && this.state.phase === 'error'
+    if (failed) this.emit({ exporting: false })
+    else this.emit({ phase: this.ready ? 'updating' : 'starting', exporting: false, error: undefined,
       notice: this.active?.kind === 'export' ? 'Export cancelled because the settings changed.' : undefined })
     this.schedulePreview()
   }
@@ -117,13 +120,14 @@ export class RenderController {
     if (this.isCurrent(request)) {
       if (message.type === 'preview') {
         try {
-          this.callbacks.onPreview(message.bitmap, request, message.sizes)
+          this.callbacks.onPreview(message.bitmap, request, message.sizes, message.thumbnail)
           this.acceptedRevision = request.revision
           this.emit({ phase: 'ready', sizes: message.sizes, elapsedMs: message.elapsedMs, error: undefined })
         } catch {
           this.emit({ phase: 'error', exporting: false, error: 'The preview could not be displayed. Please retry.' })
         } finally { message.bitmap.close() }
       } else if (message.type === 'error') {
+        if (message.stage === 'source' && this.callbacks.onSourceError?.(request, message.message)) { this.schedulePreview(); return }
         this.emit(request.kind === 'export'
           ? { exporting: false, notice: `Export failed. ${message.message} You can try again.` }
           : { phase: 'error', exporting: false, error: message.message })
