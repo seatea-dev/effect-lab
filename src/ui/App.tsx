@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowDownToLine, ArrowUpRight, Check, Circle, Contrast, Layers2, LoaderCircle, RotateCcw, Upload, SlidersHorizontal, Square, TriangleAlert } from 'lucide-react'
 import { effects, presets } from '../definitions/effects'
-import { palettes } from '../definitions/palettes'
+import { blueprintPalette, palettes } from '../definitions/palettes'
 import type { PaletteId } from '../definitions/palettes'
 import { samples } from '../definitions/samples'
 import { isModified } from '../session/state'
@@ -20,7 +20,10 @@ export function App() {
   const thresholdParams = session.parametersByEffect.threshold
   const ditherParams = session.parametersByEffect.dither
   const pixelationParams = session.parametersByEffect.pixelation
-  const palette = session.effectId === 'dither' ? palettes[ditherParams.palette] : palettes.ink
+  const edgeParams = session.parametersByEffect.edge
+  const palette = session.effectId === 'dither' ? palettes[ditherParams.palette]
+    : session.effectId === 'edge' ? { ink: edgeParams.invert ? blueprintPalette.paper : blueprintPalette.ink, paper: edgeParams.invert ? blueprintPalette.ink : blueprintPalette.paper }
+      : palettes.ink
   const busy = render.phase === 'starting' || render.phase === 'updating'
   const unavailable = render.phase === 'starting' || render.phase === 'error'
   const modified = isModified(session)
@@ -63,7 +66,7 @@ export function App() {
         <div className="preset-list">
           {presets.map((preset) => (
             <button key={preset.id} className={`preset-card ${session.presetId === preset.id ? 'selected' : ''}`} aria-pressed={session.presetId === preset.id} disabled={unavailable} onClick={() => send({ type: 'preset', id: preset.id })}>
-              <span className={`ink-swatch ${preset.effectId === 'dither' ? 'vintage-swatch' : preset.effectId === 'pixelation' ? 'mosaic-swatch' : ''}`} aria-hidden="true"><span />{preset.effectId === 'dither' ? 'Dd' : preset.effectId === 'pixelation' ? 'Mx' : 'Aa'}<span className="swatch-square" /></span>
+              <span className={`ink-swatch ${preset.effectId === 'dither' ? 'vintage-swatch' : preset.effectId === 'pixelation' ? 'mosaic-swatch' : preset.effectId === 'edge' ? 'blueprint-swatch' : ''}`} aria-hidden="true"><span />{preset.effectId === 'dither' ? 'Dd' : preset.effectId === 'pixelation' ? 'Mx' : preset.effectId === 'edge' ? 'Bp' : 'Aa'}<span className="swatch-square" /></span>
               <span className="preset-caption"><strong>{preset.name}</strong><span>{session.presetId === preset.id && <Check size={13} />}{preset.effectId === 'pixelation' ? '27 COLORS' : 'TWO TONES'}</span></span>
             </button>
           ))}
@@ -111,7 +114,12 @@ export function App() {
         <p className="effect-description">{effect.description}</p>
         <div className="preset-status"><span>{selectedPreset ? `${selectedPreset.name.toUpperCase()} PRESET` : 'EFFECT SETTINGS'}</span>{modified && <span className="modified">Modified</span>}</div>
         <fieldset className="parameters" disabled={unavailable}><legend className="sr-only">{effect.name} parameters</legend>
-          {session.effectId === 'threshold' ? <>
+          {session.effectId === 'edge' ? <>
+            <div className="slider-label"><label htmlFor="sensitivity">Sensitivity</label><output htmlFor="sensitivity">{edgeParams.sensitivity}</output></div>
+            <input id="sensitivity" type="range" min={effects.edge.controls.sensitivity.min} max={effects.edge.controls.sensitivity.max} step={effects.edge.controls.sensitivity.step} value={edgeParams.sensitivity} onChange={(event) => send({ type: 'edit', effectId: 'edge', params: { sensitivity: Number(event.target.value) } })} style={{ '--range-progress': `${edgeParams.sensitivity}%` } as React.CSSProperties} />
+            <div className="range-caption"><span>STRONG EDGES</span><span>MORE DETAIL</span></div>
+            <div className="toggle-row"><label htmlFor="edge-invert"><strong>Invert palette</strong><span>Exchange ink and paper</span></label><input id="edge-invert" className="toggle" type="checkbox" checked={edgeParams.invert} onChange={(event) => send({ type: 'edit', effectId: 'edge', params: { invert: event.target.checked } })} /></div>
+          </> : session.effectId === 'threshold' ? <>
             <div className="slider-label"><label htmlFor="cutoff">Cutoff</label><output htmlFor="cutoff">{thresholdParams.cutoff}</output></div>
             <input id="cutoff" type="range" min={effects.threshold.controls.cutoff.min} max={effects.threshold.controls.cutoff.max} step={effects.threshold.controls.cutoff.step} value={thresholdParams.cutoff} onChange={(event) => send({ type: 'edit', effectId: 'threshold', params: { cutoff: Number(event.target.value) } })} style={{ '--range-progress': `${thresholdParams.cutoff / 255 * 100}%` } as React.CSSProperties} />
             <div className="range-caption"><span>MORE LIGHT</span><span>MORE INK</span></div>
@@ -128,7 +136,7 @@ export function App() {
             <div className="palette-select"><label htmlFor="color-count">Maximum colors</label><select id="color-count" value={pixelationParams.colorCount} onChange={(event) => send({ type: 'edit', effectId: 'pixelation', params: { colorCount: Number(event.target.value) as typeof pixelationParams.colorCount } })}>{effects.pixelation.controls.colorCount.values.map((count) => <option key={count} value={count}>{count} colors</option>)}</select></div>
           </>}
         </fieldset>
-        {session.effectId !== 'pixelation' && <div className="palette-row"><span>PRINT PALETTE</span><div><span className="palette-chip paper" style={{ backgroundColor: `rgb(${palette.paper.join(',')})` }}><Circle size={10} />PAPER</span><span className="palette-chip ink" style={{ backgroundColor: `rgb(${palette.ink.join(',')})`, color: session.effectId === 'dither' && ditherParams.palette === 'terminal' ? '#101a13' : undefined }}><Square size={9} />INK</span></div></div>}
+        {session.effectId !== 'pixelation' && <div className="palette-row"><span>PRINT PALETTE</span><div><span className="palette-chip paper" style={{ backgroundColor: `rgb(${palette.paper.join(',')})`, color: session.effectId === 'edge' ? `rgb(${palette.ink.join(',')})` : undefined }}><Circle size={10} />PAPER</span><span className="palette-chip ink" style={{ backgroundColor: `rgb(${palette.ink.join(',')})`, color: session.effectId === 'edge' ? `rgb(${palette.paper.join(',')})` : session.effectId === 'dither' && ditherParams.palette === 'terminal' ? '#101a13' : undefined }}><Square size={9} />INK</span></div></div>}
         <div className="reset-row"><button className="text-button" disabled={unavailable} onClick={() => send({ type: 'reset-effect' })}><RotateCcw size={12} />Reset effect</button><button className="text-button" disabled={unavailable || !session.presetId} onClick={() => send({ type: 'reset-preset' })}>Reset preset</button></div>
         <div className="export-section"><div className="section-heading"><h3>The finished print</h3><ArrowDownToLine size={15} /></div><dl><div><dt>Format</dt><dd>PNG</dd></div><div><dt>Source</dt><dd>{dimensions(render.sizes?.source ?? displaySource)}</dd></div><div><dt>Export</dt><dd>{render.sizes ? dimensions(render.sizes.export) : 'Preparing…'}</dd></div></dl>{render.sizes?.downscaled && <p className="downscale-notice">Export reduced to fit the 12-megapixel limit. Your image keeps its proportions.</p>}<button className="export-button" onClick={exportPng} disabled={!!session.pendingSourceId || render.phase !== 'ready' || render.exporting}>{render.exporting ? <LoaderCircle className="spin" size={16} /> : <ArrowDownToLine size={16} />}{render.exporting ? 'Preparing PNG…' : 'Export PNG'}<span>↗</span></button><p className="export-caption">Your image. Your device. No cloud.</p><div className="export-notice" role="status">{render.notice}</div></div>
       </aside>

@@ -26,6 +26,7 @@ export type SessionAction =
 export function createSession(sourceId: string): Session {
   return { sourceId, pendingSourceId: null, sourceIntent: 0, retainedUploadId: null, effectId: vintageDitherPreset.effectId, parametersByEffect: {
     threshold: { ...effects.threshold.defaults }, dither: { ...vintageDitherPreset.params }, pixelation: { ...effects.pixelation.defaults },
+    edge: { ...effects.edge.defaults },
   }, presetId: vintageDitherPreset.id, revision: 1 }
 }
 

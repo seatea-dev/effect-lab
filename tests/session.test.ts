@@ -67,6 +67,18 @@ test('Mosaic applies Pixelation settings without changing the source and reports
   expect(isModified(session)).toBe(false)
 })
 
+test('Blueprint applies edge settings, remains associated while edited, and resets cleanly', () => {
+  let session = sessionReducer(createSession('urban'), { type: 'preset', id: 'blueprint' })
+  expect(session).toMatchObject({ effectId: 'edge', presetId: 'blueprint', parametersByEffect: { edge: { sensitivity: 60, invert: false } } })
+  session = sessionReducer(session, { type: 'edit', effectId: 'edge', params: { sensitivity: 80 } })
+  expect(isModified(session)).toBe(true)
+  expect(sessionReducer(session, { type: 'reset-preset' })).toMatchObject({ presetId: 'blueprint', parametersByEffect: { edge: { sensitivity: 60, invert: false } } })
+  session = sessionReducer(session, { type: 'edit', effectId: 'edge', params: { invert: true } })
+  const switched = acceptSource(session, 'nature')
+  expect(switched).toMatchObject({ sourceId: 'nature', presetId: 'blueprint', parametersByEffect: { edge: { sensitivity: 80, invert: true } } })
+  expect(sessionReducer(switched, { type: 'reset-effect' })).toMatchObject({ presetId: null, parametersByEffect: { edge: { sensitivity: 50, invert: false } } })
+})
+
 test('Pixelation remembers edits across effect and source changes and keeps resets separate', () => {
   let session = sessionReducer(createSession('urban'), { type: 'preset', id: 'mosaic' })
   session = sessionReducer(session, { type: 'edit', effectId: 'pixelation', params: { blockSize: 31, colorCount: 125 } })

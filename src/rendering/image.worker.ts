@@ -1,5 +1,6 @@
 import { effects } from '../definitions/effects'
 import { drawPixelation } from '../effects/pixelation'
+import { edgeDetectBatched } from '../effects/edgeDetection'
 import type { PixelationPlan } from '../effects/pixelation'
 import { PAPER_CSS } from '../definitions/palettes'
 import { validateUpload } from './upload'
@@ -94,7 +95,16 @@ async function process(request: RenderRequest, abortController: AbortController)
         processed = { key, pixelation: result.value }
       } else {
         let pixels: Uint8ClampedArray<ArrayBuffer>
-        if (request.effectId === 'dither') {
+        if (request.effectId === 'edge') {
+          const job = edgeDetectBatched(image.pixels, width, height, request.params)
+          let result = job.next()
+          while (!result.done) {
+            await yieldToMessages()
+            if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+            result = job.next()
+          }
+          pixels = new Uint8ClampedArray(result.value)
+        } else if (request.effectId === 'dither') {
           const job = effects.dither.process(image.pixels, width, request.params)
           let result = job.next()
           while (!result.done) {
