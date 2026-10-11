@@ -1,0 +1,35 @@
+import atlasUrl from '../assets/terminal-atlas-v1.png'
+import type { PaletteId } from '../definitions/palettes'
+
+// Glyphs are ordered by measured alpha coverage in IBM Plex Mono Regular 2.5.0.
+export const GLYPH_RAMP = " .,:;irsh23X95ASHG#&MB@"
+export const GLYPH_COVERAGE = [
+  0,
+  0.02142962509077705,
+  0.033649804829339144,
+  0.042868895243282495,
+  0.05508907498184459,
+  0.11195295479302832,
+  0.11232604847494554,
+  0.12343477668845317,
+  0.14025689905591868,
+  0.14598946986201888,
+  0.14610305464778503,
+  0.15077716503267974,
+  0.15182722857661582,
+  0.15348368282498184,
+  0.16001373002904865,
+  0.16031102487291213,
+  0.16735532407407408,
+  0.16804454883805375,
+  0.17076990286855484,
+  0.17723561183732753,
+  0.1973672385620915,
+  0.19974911492374728,
+  0.20897535403050108
+] as const
+
+export const GLYPH_TILE_WIDTH = 144
+export const GLYPH_TILE_HEIGHT = 240
+export const GLYPH_ATLAS_URL = atlasUrl
+export const GLYPH_PALETTE_ROW: Record<PaletteId, number> = { ink: 0, terminal: 1, vintage: 2 }

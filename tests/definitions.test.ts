@@ -30,6 +30,16 @@ test('validates the shipped definitions', () => {
   expect(() => validateDefinitions(catalogEffects, catalogPresets)).not.toThrow()
 })
 
+test('Terminal provides the approved ASCII defaults, controls, and preset values', () => {
+  expect(catalogEffects.ascii.defaults).toEqual({ characterHeight: 24, contrast: 1, palette: 'ink' })
+  expect(catalogEffects.ascii.controls).toMatchObject({
+    characterHeight: { min: 12, max: 64, step: 1 },
+    contrast: { min: 0.5, max: 2, step: 0.05 },
+    palette: { values: ['ink', 'terminal', 'vintage'] },
+  })
+  expect(catalogPresets.find(({ id }) => id === 'terminal')).toMatchObject({ effectId: 'ascii', params: { characterHeight: 20, contrast: 1.25, palette: 'terminal' } })
+})
+
 test('Blueprint palette-chip label colors remain readable in both inversion states', () => {
   const luminance = (rgb: readonly number[]) => {
     const linear = rgb.map((channel) => {

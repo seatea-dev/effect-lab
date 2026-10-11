@@ -22,10 +22,16 @@ export function App() {
   const pixelationParams = session.parametersByEffect.pixelation
   const edgeParams = session.parametersByEffect.edge
   const halftoneParams = session.parametersByEffect.halftone
-  const palette = session.effectId === 'dither' ? palettes[ditherParams.palette]
+  const asciiParams = session.parametersByEffect.ascii
+  const palette = session.effectId === 'ascii' ? palettes[asciiParams.palette]
+    : session.effectId === 'dither' ? palettes[ditherParams.palette]
     : session.effectId === 'edge' ? { ink: edgeParams.invert ? blueprintPalette.paper : blueprintPalette.ink, paper: edgeParams.invert ? blueprintPalette.ink : blueprintPalette.paper }
       : session.effectId === 'halftone' ? palettes[halftoneParams.palette]
       : palettes.ink
+  const terminalPaletteActive = (session.effectId === 'ascii' && asciiParams.palette === 'terminal')
+    || (session.effectId === 'dither' && ditherParams.palette === 'terminal')
+  const palettePaperText = session.effectId === 'edge' || terminalPaletteActive ? `rgb(${palette.ink.join(',')})` : undefined
+  const paletteInkText = session.effectId === 'edge' ? `rgb(${palette.paper.join(',')})` : terminalPaletteActive ? '#101a13' : undefined
   const busy = render.phase === 'starting' || render.phase === 'updating'
   const unavailable = render.phase === 'starting' || render.phase === 'error'
   const modified = isModified(session)
@@ -60,7 +66,7 @@ export function App() {
         <nav aria-label="Image effects">
           {Object.values(effects).map((entry) => (
             <button key={entry.id} className={`effect-button ${session.effectId === entry.id ? 'selected' : ''}`} aria-pressed={session.effectId === entry.id} onClick={() => send({ type: 'effect', id: entry.id })} disabled={unavailable}>
-              <Contrast size={19} /><span><strong>{entry.name}</strong><small>{entry.id === 'dither' ? 'Tone into printed texture' : entry.id === 'pixelation' ? 'Simplify shape and color' : entry.id === 'halftone' ? 'Light into inked dots' : entry.id === 'edge' ? 'Trace image contours' : 'Light into graphic form'}</small></span><ArrowUpRight size={15} />
+              <Contrast size={19} /><span><strong>{entry.name}</strong><small>{entry.id === 'ascii' ? 'Shape light with character marks' : entry.id === 'dither' ? 'Tone into printed texture' : entry.id === 'pixelation' ? 'Simplify shape and color' : entry.id === 'halftone' ? 'Light into inked dots' : entry.id === 'edge' ? 'Trace image contours' : 'Light into graphic form'}</small></span><ArrowUpRight size={15} />
             </button>
           ))}
         </nav>
@@ -68,8 +74,8 @@ export function App() {
         <div className="preset-list">
           {presets.map((preset) => (
             <button key={preset.id} className={`preset-card ${session.presetId === preset.id ? 'selected' : ''}`} aria-pressed={session.presetId === preset.id} disabled={unavailable} onClick={() => send({ type: 'preset', id: preset.id })}>
-              <span className={`ink-swatch ${preset.effectId === 'dither' ? 'vintage-swatch' : preset.effectId === 'pixelation' ? 'mosaic-swatch' : preset.effectId === 'edge' ? 'blueprint-swatch' : preset.effectId === 'halftone' ? 'newsprint-swatch' : ''}`} aria-hidden="true"><span />{preset.effectId === 'dither' ? 'Dd' : preset.effectId === 'pixelation' ? 'Mx' : preset.effectId === 'edge' ? 'Bp' : preset.effectId === 'halftone' ? 'Nw' : 'Aa'}<span className="swatch-square" /></span>
-              <span className="preset-caption"><strong>{preset.name}</strong><span>{session.presetId === preset.id && <Check size={13} />}{preset.effectId === 'pixelation' ? '27 COLORS' : 'TWO TONES'}</span></span>
+              <span className={`ink-swatch ${preset.effectId === 'ascii' ? 'terminal-swatch' : preset.effectId === 'dither' ? 'vintage-swatch' : preset.effectId === 'pixelation' ? 'mosaic-swatch' : preset.effectId === 'edge' ? 'blueprint-swatch' : preset.effectId === 'halftone' ? 'newsprint-swatch' : ''}`} aria-hidden="true"><span />{preset.effectId === 'ascii' ? 'Te' : preset.effectId === 'dither' ? 'Dd' : preset.effectId === 'pixelation' ? 'Mx' : preset.effectId === 'edge' ? 'Bp' : preset.effectId === 'halftone' ? 'Nw' : 'Aa'}<span className="swatch-square" /></span>
+              <span className="preset-caption"><strong>{preset.name}</strong><span>{session.presetId === preset.id && <Check size={13} />}{preset.effectId === 'pixelation' ? '27 COLORS' : preset.effectId === 'ascii' ? 'GLYPH PRINT' : 'TWO TONES'}</span></span>
             </button>
           ))}
         </div>
@@ -116,7 +122,15 @@ export function App() {
         <p className="effect-description">{effect.description}</p>
         <div className="preset-status"><span>{selectedPreset ? `${selectedPreset.name.toUpperCase()} PRESET` : 'EFFECT SETTINGS'}</span>{modified && <span className="modified">Modified</span>}</div>
         <fieldset className="parameters" disabled={unavailable}><legend className="sr-only">{effect.name} parameters</legend>
-          {session.effectId === 'edge' ? <>
+          {session.effectId === 'ascii' ? <>
+            <div className="slider-label"><label htmlFor="character-height">Character height</label><output htmlFor="character-height">{asciiParams.characterHeight} units</output></div>
+            <input id="character-height" type="range" min={effects.ascii.controls.characterHeight.min} max={effects.ascii.controls.characterHeight.max} step={effects.ascii.controls.characterHeight.step} value={asciiParams.characterHeight} onChange={(event) => send({ type: 'edit', effectId: 'ascii', params: { characterHeight: Number(event.target.value) } })} style={{ '--range-progress': `${(asciiParams.characterHeight - 12) / 52 * 100}%` } as React.CSSProperties} />
+            <div className="range-caption"><span>FINER TEXTURE</span><span>COARSER TEXTURE</span></div>
+            <div className="slider-label"><label htmlFor="ascii-contrast">Contrast</label><output htmlFor="ascii-contrast">{asciiParams.contrast.toFixed(2)}</output></div>
+            <input id="ascii-contrast" type="range" min={effects.ascii.controls.contrast.min} max={effects.ascii.controls.contrast.max} step={effects.ascii.controls.contrast.step} value={asciiParams.contrast} onChange={(event) => send({ type: 'edit', effectId: 'ascii', params: { contrast: Number(event.target.value) } })} style={{ '--range-progress': `${(asciiParams.contrast - 0.5) / 1.5 * 100}%` } as React.CSSProperties} />
+            <div className="range-caption"><span>SOFTER</span><span>STRONGER</span></div>
+            <div className="palette-select"><label htmlFor="ascii-palette">Palette</label><select id="ascii-palette" value={asciiParams.palette} onChange={(event) => send({ type: 'edit', effectId: 'ascii', params: { palette: event.target.value as PaletteId } })}>{effects.ascii.controls.palette.values.map((id) => <option key={id} value={id}>{palettes[id].name}</option>)}</select></div>
+          </> : session.effectId === 'edge' ? <>
             <div className="slider-label"><label htmlFor="sensitivity">Sensitivity</label><output htmlFor="sensitivity">{edgeParams.sensitivity}</output></div>
             <input id="sensitivity" type="range" min={effects.edge.controls.sensitivity.min} max={effects.edge.controls.sensitivity.max} step={effects.edge.controls.sensitivity.step} value={edgeParams.sensitivity} onChange={(event) => send({ type: 'edit', effectId: 'edge', params: { sensitivity: Number(event.target.value) } })} style={{ '--range-progress': `${edgeParams.sensitivity}%` } as React.CSSProperties} />
             <div className="range-caption"><span>STRONG EDGES</span><span>MORE DETAIL</span></div>
@@ -146,7 +160,7 @@ export function App() {
             <div className="palette-select"><label htmlFor="color-count">Maximum colors</label><select id="color-count" value={pixelationParams.colorCount} onChange={(event) => send({ type: 'edit', effectId: 'pixelation', params: { colorCount: Number(event.target.value) as typeof pixelationParams.colorCount } })}>{effects.pixelation.controls.colorCount.values.map((count) => <option key={count} value={count}>{count} colors</option>)}</select></div>
           </>}
         </fieldset>
-        {session.effectId !== 'pixelation' && <div className="palette-row"><span>PRINT PALETTE</span><div><span className="palette-chip paper" style={{ backgroundColor: `rgb(${palette.paper.join(',')})`, color: session.effectId === 'edge' ? `rgb(${palette.ink.join(',')})` : undefined }}><Circle size={10} />PAPER</span><span className="palette-chip ink" style={{ backgroundColor: `rgb(${palette.ink.join(',')})`, color: session.effectId === 'edge' ? `rgb(${palette.paper.join(',')})` : session.effectId === 'dither' && ditherParams.palette === 'terminal' ? '#101a13' : undefined }}><Square size={9} />INK</span></div></div>}
+        {session.effectId !== 'pixelation' && <div className="palette-row"><span>PRINT PALETTE</span><div><span className="palette-chip paper" style={{ backgroundColor: `rgb(${palette.paper.join(',')})`, color: palettePaperText }}><Circle size={10} />PAPER</span><span className="palette-chip ink" style={{ backgroundColor: `rgb(${palette.ink.join(',')})`, color: paletteInkText }}><Square size={9} />INK</span></div></div>}
         <div className="reset-row"><button className="text-button" disabled={unavailable} onClick={() => send({ type: 'reset-effect' })}><RotateCcw size={12} />Reset effect</button><button className="text-button" disabled={unavailable || !session.presetId} onClick={() => send({ type: 'reset-preset' })}>Reset preset</button></div>
         <div className="export-section"><div className="section-heading"><h3>The finished print</h3><ArrowDownToLine size={15} /></div><dl><div><dt>Format</dt><dd>PNG</dd></div><div><dt>Source</dt><dd>{dimensions(render.sizes?.source ?? displaySource)}</dd></div><div><dt>Export</dt><dd>{render.sizes ? dimensions(render.sizes.export) : 'Preparing…'}</dd></div></dl>{render.sizes?.downscaled && <p className="downscale-notice">Export reduced to fit the 12-megapixel limit. Your image keeps its proportions.</p>}<button className="export-button" onClick={exportPng} disabled={!!session.pendingSourceId || render.phase !== 'ready' || render.exporting}>{render.exporting ? <LoaderCircle className="spin" size={16} /> : <ArrowDownToLine size={16} />}{render.exporting ? 'Preparing PNG…' : 'Export PNG'}<span>↗</span></button><p className="export-caption">Your image. Your device. No cloud.</p><div className="export-notice" role="status">{render.notice}</div></div>
       </aside>

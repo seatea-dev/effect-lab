@@ -149,6 +149,8 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 9px; border-radius: 50
 .newsprint-swatch { background: #f4f1e8; color: #171717; }
 .newsprint-swatch > span:first-child { background: #171717; width: 26px; height: 26px; top: 5px; right: 7px; }
 .newsprint-swatch .swatch-square { background: #171717; border-radius: 50%; width: 13px; height: 13px; bottom: 8px; left: 10px; }
+.terminal-swatch { background: #101a13; color: #8dff9a; font-family: var(--font-mono); font-size: 44px; letter-spacing: -5px; }
+.terminal-swatch > span:first-child, .terminal-swatch .swatch-square { background: #8dff9a; }
 .palette-select { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .palette-select label { font-size: 12px; }
 .palette-select select { font: inherit; font-size: 11px; color: #e7eae3; border: 1px solid #48513e; background: #20271c; border-radius: 4px; padding: 7px 10px; }
