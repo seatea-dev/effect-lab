@@ -53,6 +53,41 @@ test('a fresh session starts with Vintage Dither and other effects use built-in 
   expect(session.presetId).toBe('vintage-dither')
   expect(session.parametersByEffect.dither).toEqual({ contrast: 1.2, palette: 'vintage' })
   expect(session.parametersByEffect.threshold).toEqual({ cutoff: 128, invert: false })
+  expect(session.parametersByEffect.pixelation).toEqual({ blockSize: 12, colorCount: 64 })
+})
+
+test('Mosaic applies Pixelation settings without changing the source and reports preset equality', () => {
+  const session = sessionReducer(createSession('portrait'), { type: 'preset', id: 'mosaic' })
+  expect(session).toMatchObject({
+    sourceId: 'portrait',
+    effectId: 'pixelation',
+    presetId: 'mosaic',
+    parametersByEffect: { pixelation: { blockSize: 20, colorCount: 27 } },
+  })
+  expect(isModified(session)).toBe(false)
+})
+
+test('Pixelation remembers edits across effect and source changes and keeps resets separate', () => {
+  let session = sessionReducer(createSession('urban'), { type: 'preset', id: 'mosaic' })
+  session = sessionReducer(session, { type: 'edit', effectId: 'pixelation', params: { blockSize: 31, colorCount: 125 } })
+  expect(isModified(session)).toBe(true)
+  session = acceptSource(session, 'nature')
+  expect(session.parametersByEffect.pixelation).toEqual({ blockSize: 31, colorCount: 125 })
+  expect(session.presetId).toBe('mosaic')
+  session = sessionReducer(session, { type: 'effect', id: 'threshold' })
+  session = sessionReducer(session, { type: 'effect', id: 'pixelation' })
+  expect(session.parametersByEffect.pixelation).toEqual({ blockSize: 31, colorCount: 125 })
+  expect(session.presetId).toBeNull()
+  const effectReset = sessionReducer(session, { type: 'reset-effect' })
+  expect(effectReset.parametersByEffect.pixelation).toEqual({ blockSize: 12, colorCount: 64 })
+  expect(effectReset.presetId).toBeNull()
+  expect(effectReset.sourceId).toBe('nature')
+
+  const editedPreset = sessionReducer(effectReset, { type: 'preset', id: 'mosaic' })
+  const resetPreset = sessionReducer(sessionReducer(editedPreset, { type: 'edit', effectId: 'pixelation', params: { blockSize: 42 } }), { type: 'reset-preset' })
+  expect(resetPreset.parametersByEffect.pixelation).toEqual({ blockSize: 20, colorCount: 27 })
+  expect(isModified(resetPreset)).toBe(false)
+  expect(resetPreset.sourceId).toBe('nature')
 })
 
 test('dither edits normalize contrast and retain Modified until preset values return', () => {

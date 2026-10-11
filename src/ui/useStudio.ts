@@ -16,9 +16,9 @@ function snapshot(session: Session, uploads: Map<string, Upload>): RenderSnapsho
   const id = session.pendingSourceId ?? session.sourceId
   const upload = uploads.get(id)
   const source = upload ? { id, url: upload.url, upload: true } : { id, url: getSample(id).url }
-  return session.effectId === 'dither'
-    ? { revision: session.revision, source, effectId: 'dither', params: session.parametersByEffect.dither }
-    : { revision: session.revision, source, effectId: 'threshold', params: session.parametersByEffect.threshold }
+  if (session.effectId === 'dither') return { revision: session.revision, source, effectId: 'dither', params: session.parametersByEffect.dither }
+  if (session.effectId === 'pixelation') return { revision: session.revision, source, effectId: 'pixelation', params: session.parametersByEffect.pixelation }
+  return { revision: session.revision, source, effectId: 'threshold', params: session.parametersByEffect.threshold }
 }
 
 function releaseUpload(upload: Upload) {

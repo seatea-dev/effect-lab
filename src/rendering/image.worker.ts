@@ -1,4 +1,6 @@
 import { effects } from '../definitions/effects'
+import { drawPixelation } from '../effects/pixelation'
+import type { PixelationPlan } from '../effects/pixelation'
 import { PAPER_CSS } from '../definitions/palettes'
 import { validateUpload } from './upload'
 import { imageSizes } from './sizing'
@@ -13,7 +15,7 @@ let instanceId = ''
 let latestRevision = 0
 let desiredSource: RenderSnapshot['source'] | undefined
 let prepared: { source: RenderSnapshot['source']; sizes: ImageSizes; pixels: Uint8ClampedArray; thumbnail?: Blob } | undefined
-let processed: { key: string; canvas: OffscreenCanvas } | undefined
+let processed: { key: string; canvas: OffscreenCanvas } | { key: string; pixelation: PixelationPlan } | undefined
 let running = false
 let activeAbortController: AbortController | undefined
 const yieldToMessages = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
@@ -81,41 +83,76 @@ async function process(request: RenderRequest, abortController: AbortController)
     const key = JSON.stringify([request.source, request.effectId, request.params])
     if (processed?.key !== key) {
       const { width, height } = image.sizes.analysis
-      let pixels: Uint8ClampedArray<ArrayBuffer>
-      if (request.effectId === 'dither') {
-        const job = effects.dither.process(image.pixels, width, request.params)
+      if (request.effectId === 'pixelation') {
+        const job = effects.pixelation.process(image.pixels, width, height, image.sizes.source.width, image.sizes.source.height, request.params)
         let result = job.next()
         while (!result.done) {
           await yieldToMessages()
           if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
           result = job.next()
         }
-        pixels = result.value
+        processed = { key, pixelation: result.value }
       } else {
-        pixels = new Uint8ClampedArray(image.pixels.length)
-        for (let row = 0; row < height; row += 64) {
-          const start = row * width * 4
-          const end = Math.min(height, row + 64) * width * 4
-          pixels.set(effects.threshold.process(image.pixels.subarray(start, end), request.params), start)
-          await yieldToMessages()
-          if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+        let pixels: Uint8ClampedArray<ArrayBuffer>
+        if (request.effectId === 'dither') {
+          const job = effects.dither.process(image.pixels, width, request.params)
+          let result = job.next()
+          while (!result.done) {
+            await yieldToMessages()
+            if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+            result = job.next()
+          }
+          pixels = result.value
+        } else {
+          pixels = new Uint8ClampedArray(image.pixels.length)
+          for (let row = 0; row < height; row += 64) {
+            const start = row * width * 4
+            const end = Math.min(height, row + 64) * width * 4
+            pixels.set(effects.threshold.process(image.pixels.subarray(start, end), request.params), start)
+            await yieldToMessages()
+            if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+          }
         }
+        const { output, context } = canvas(width, height)
+        context.putImageData(new ImageData(pixels, width, height), 0, 0)
+        processed = { key, canvas: output }
       }
-      const { output, context } = canvas(width, height)
-      context.putImageData(new ImageData(pixels, width, height), 0, 0)
-      processed = { key, canvas: output }
     }
     if (request.kind === 'preview') {
-      const bitmap = await createImageBitmap(processed.canvas)
+      let bitmap: ImageBitmap
+      if ('pixelation' in processed) {
+        const { width, height } = image.sizes.analysis
+        const { output, context } = canvas(width, height)
+        const job = drawPixelation(processed.pixelation, context, width, height)
+        let result = job.next()
+        while (!result.done) {
+          await yieldToMessages()
+          if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+          result = job.next()
+        }
+        bitmap = await createImageBitmap(output)
+      } else {
+        bitmap = await createImageBitmap(processed.canvas)
+      }
       if (!isCurrent(request)) { bitmap.close(); scope.postMessage({ type: 'cancelled', request }); return }
       scope.postMessage({ type: 'preview', request, sizes: image.sizes, bitmap, thumbnail: image.thumbnail, elapsedMs: performance.now() - started }, [bitmap])
     } else {
       const { width, height } = image.sizes.export
       const { output, context } = canvas(width, height)
-      context.imageSmoothingEnabled = false
-      context.drawImage(processed.canvas, 0, 0, width, height)
-      await yieldToMessages()
-      if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+      if ('pixelation' in processed) {
+        const job = drawPixelation(processed.pixelation, context, width, height)
+        let result = job.next()
+        while (!result.done) {
+          await yieldToMessages()
+          if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+          result = job.next()
+        }
+      } else {
+        context.imageSmoothingEnabled = false
+        context.drawImage(processed.canvas, 0, 0, width, height)
+        await yieldToMessages()
+        if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+      }
       const blob = await output.convertToBlob({ type: 'image/png' })
       if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
       if (!blob.size || blob.type !== 'image/png') throw new Error('PNG encoding did not succeed.')

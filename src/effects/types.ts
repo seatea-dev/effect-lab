@@ -1,7 +1,8 @@
 import type { DitherParams } from './dither'
+import type { PixelationParams } from './pixelation'
 
 export type ThresholdParams = { cutoff: number; invert: boolean }
-export type ParametersByEffect = { threshold: ThresholdParams; dither: DitherParams }
+export type ParametersByEffect = { threshold: ThresholdParams; dither: DitherParams; pixelation: PixelationParams }
 export type EffectId = keyof ParametersByEffect
 export type EffectSelection = {
   [Id in EffectId]: { effectId: Id; params: ParametersByEffect[Id] }
