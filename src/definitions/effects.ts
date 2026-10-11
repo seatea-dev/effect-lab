@@ -1,6 +1,7 @@
 import { threshold } from '../effects/threshold'
 import { dither } from '../effects/dither'
 import { COLOR_COUNTS, pixelate } from '../effects/pixelation'
+import { edgeDetect } from '../effects/edgeDetection'
 import type { EffectSelection, ThresholdParams } from '../effects/types'
 import type { DitherParams } from '../effects/dither'
 import type { PixelationParams } from '../effects/pixelation'
@@ -34,6 +35,14 @@ export const effects = {
     },
     process: pixelate,
   },
+  edge: {
+    id: 'edge' as const,
+    name: 'Edge Detection',
+    description: 'Trace image contours in a cool Blueprint palette.',
+    defaults: { sensitivity: 50, invert: false },
+    controls: { sensitivity: { min: 0, max: 100, step: 1, label: 'Sensitivity' }, invert: { label: 'Invert palette' } },
+    process: edgeDetect,
+  },
 }
 
 export type PresetDefinition = { id: string; name: string } & EffectSelection
@@ -46,10 +55,15 @@ export const mosaicPreset = {
   id: 'mosaic', name: 'Mosaic', effectId: 'pixelation', params: { blockSize: 20, colorCount: 27 },
 } satisfies PresetDefinition
 
+export const blueprintPreset = {
+  id: 'blueprint', name: 'Blueprint', effectId: 'edge', params: { sensitivity: 60, invert: false },
+} satisfies PresetDefinition
+
 export const presets: readonly PresetDefinition[] = [
   vintageDitherPreset,
   { id: 'ink', name: 'Ink', effectId: 'threshold', params: { cutoff: 140, invert: false } },
   mosaicPreset,
+  blueprintPreset,
 ]
 
 if (import.meta.env.DEV) validateDefinitions(effects, presets)

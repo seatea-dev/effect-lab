@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
 import { validateDefinitions } from '../src/definitions/validate'
 import { effects as catalogEffects, presets as catalogPresets } from '../src/definitions/effects'
+import { blueprintPalette } from '../src/definitions/palettes'
 
 const threshold = {
   id: 'threshold',
@@ -27,6 +28,29 @@ const dither = {
 
 test('validates the shipped definitions', () => {
   expect(() => validateDefinitions(catalogEffects, catalogPresets)).not.toThrow()
+})
+
+test('Blueprint palette-chip label colors remain readable in both inversion states', () => {
+  const luminance = (rgb: readonly number[]) => {
+    const linear = rgb.map((channel) => {
+      const value = channel / 255
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+    })
+    return 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!
+  }
+  const contrast = (foreground: readonly number[], background: readonly number[]) => {
+    const [bright, dark] = [luminance(foreground), luminance(background)].sort((a, b) => b - a)
+    return (bright! + 0.05) / (dark! + 0.05)
+  }
+
+  for (const invert of [false, true]) {
+    const paperBackground = invert ? blueprintPalette.ink : blueprintPalette.paper
+    const paperForeground = invert ? blueprintPalette.paper : blueprintPalette.ink
+    const inkBackground = invert ? blueprintPalette.paper : blueprintPalette.ink
+    const inkForeground = invert ? blueprintPalette.ink : blueprintPalette.paper
+    expect(contrast(paperForeground, paperBackground)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(inkForeground, inkBackground)).toBeGreaterThanOrEqual(4.5)
+  }
 })
 
 test('allows multiple presets for one effect', () => {

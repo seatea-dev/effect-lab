@@ -8,3 +8,9 @@ export const palettes = {
   vintage: { name: 'Vintage', ink: [72, 59, 50], paper: [228, 213, 183] },
 } as const
 export type PaletteId = keyof typeof palettes
+
+export const blueprintPalette = {
+  name: 'Blueprint',
+  ink: [188, 235, 255],
+  paper: [18, 59, 99],
+} as const
