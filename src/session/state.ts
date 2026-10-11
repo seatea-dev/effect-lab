@@ -27,6 +27,7 @@ export function createSession(sourceId: string): Session {
   return { sourceId, pendingSourceId: null, sourceIntent: 0, retainedUploadId: null, effectId: vintageDitherPreset.effectId, parametersByEffect: {
     threshold: { ...effects.threshold.defaults }, dither: { ...vintageDitherPreset.params }, pixelation: { ...effects.pixelation.defaults },
     edge: { ...effects.edge.defaults },
+    halftone: { ...effects.halftone.defaults },
   }, presetId: vintageDitherPreset.id, revision: 1 }
 }
 
@@ -44,7 +45,7 @@ export function sessionReducer(state: Session, action: SessionAction): Session {
   switch (action.type) {
     case 'edit': {
       if (action.effectId !== state.effectId) return state
-      const params = action.effectId === 'dither' && action.params.contrast !== undefined
+      const params = (action.effectId === 'dither' || action.effectId === 'halftone') && action.params.contrast !== undefined
         ? { ...action.params, contrast: Math.round(action.params.contrast * 20) / 20 } : action.params
       return { ...next, parametersByEffect: { ...state.parametersByEffect, [action.effectId]: { ...state.parametersByEffect[action.effectId], ...params } } }
     }

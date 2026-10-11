@@ -21,8 +21,10 @@ export function App() {
   const ditherParams = session.parametersByEffect.dither
   const pixelationParams = session.parametersByEffect.pixelation
   const edgeParams = session.parametersByEffect.edge
+  const halftoneParams = session.parametersByEffect.halftone
   const palette = session.effectId === 'dither' ? palettes[ditherParams.palette]
     : session.effectId === 'edge' ? { ink: edgeParams.invert ? blueprintPalette.paper : blueprintPalette.ink, paper: edgeParams.invert ? blueprintPalette.ink : blueprintPalette.paper }
+      : session.effectId === 'halftone' ? palettes[halftoneParams.palette]
       : palettes.ink
   const busy = render.phase === 'starting' || render.phase === 'updating'
   const unavailable = render.phase === 'starting' || render.phase === 'error'
@@ -58,7 +60,7 @@ export function App() {
         <nav aria-label="Image effects">
           {Object.values(effects).map((entry) => (
             <button key={entry.id} className={`effect-button ${session.effectId === entry.id ? 'selected' : ''}`} aria-pressed={session.effectId === entry.id} onClick={() => send({ type: 'effect', id: entry.id })} disabled={unavailable}>
-              <Contrast size={19} /><span><strong>{entry.name}</strong><small>{entry.id === 'dither' ? 'Tone into printed texture' : entry.id === 'pixelation' ? 'Simplify shape and color' : 'Light into graphic form'}</small></span><ArrowUpRight size={15} />
+              <Contrast size={19} /><span><strong>{entry.name}</strong><small>{entry.id === 'dither' ? 'Tone into printed texture' : entry.id === 'pixelation' ? 'Simplify shape and color' : entry.id === 'halftone' ? 'Light into inked dots' : entry.id === 'edge' ? 'Trace image contours' : 'Light into graphic form'}</small></span><ArrowUpRight size={15} />
             </button>
           ))}
         </nav>
@@ -66,7 +68,7 @@ export function App() {
         <div className="preset-list">
           {presets.map((preset) => (
             <button key={preset.id} className={`preset-card ${session.presetId === preset.id ? 'selected' : ''}`} aria-pressed={session.presetId === preset.id} disabled={unavailable} onClick={() => send({ type: 'preset', id: preset.id })}>
-              <span className={`ink-swatch ${preset.effectId === 'dither' ? 'vintage-swatch' : preset.effectId === 'pixelation' ? 'mosaic-swatch' : preset.effectId === 'edge' ? 'blueprint-swatch' : ''}`} aria-hidden="true"><span />{preset.effectId === 'dither' ? 'Dd' : preset.effectId === 'pixelation' ? 'Mx' : preset.effectId === 'edge' ? 'Bp' : 'Aa'}<span className="swatch-square" /></span>
+              <span className={`ink-swatch ${preset.effectId === 'dither' ? 'vintage-swatch' : preset.effectId === 'pixelation' ? 'mosaic-swatch' : preset.effectId === 'edge' ? 'blueprint-swatch' : preset.effectId === 'halftone' ? 'newsprint-swatch' : ''}`} aria-hidden="true"><span />{preset.effectId === 'dither' ? 'Dd' : preset.effectId === 'pixelation' ? 'Mx' : preset.effectId === 'edge' ? 'Bp' : preset.effectId === 'halftone' ? 'Nw' : 'Aa'}<span className="swatch-square" /></span>
               <span className="preset-caption"><strong>{preset.name}</strong><span>{session.presetId === preset.id && <Check size={13} />}{preset.effectId === 'pixelation' ? '27 COLORS' : 'TWO TONES'}</span></span>
             </button>
           ))}
@@ -129,6 +131,14 @@ export function App() {
             <input id="contrast" type="range" min={effects.dither.controls.contrast.min} max={effects.dither.controls.contrast.max} step={effects.dither.controls.contrast.step} value={ditherParams.contrast} onChange={(event) => send({ type: 'edit', effectId: 'dither', params: { contrast: Number(event.target.value) } })} style={{ '--range-progress': `${(ditherParams.contrast - 0.5) / 1.5 * 100}%` } as React.CSSProperties} />
             <div className="range-caption"><span>SOFTER</span><span>STRONGER</span></div>
             <div className="palette-select"><label htmlFor="palette">Palette</label><select id="palette" value={ditherParams.palette} onChange={(event) => send({ type: 'edit', effectId: 'dither', params: { palette: event.target.value as PaletteId } })}>{effects.dither.controls.palette.values.map((id) => <option key={id} value={id}>{palettes[id].name}</option>)}</select></div>
+          </> : session.effectId === 'halftone' ? <>
+            <div className="slider-label"><label htmlFor="dot-spacing">Dot spacing</label><output htmlFor="dot-spacing">{halftoneParams.spacing} units</output></div>
+            <input id="dot-spacing" type="range" min={effects.halftone.controls.spacing.min} max={effects.halftone.controls.spacing.max} step={effects.halftone.controls.spacing.step} value={halftoneParams.spacing} onChange={(event) => send({ type: 'edit', effectId: 'halftone', params: { spacing: Number(event.target.value) } })} style={{ '--range-progress': `${(halftoneParams.spacing - 4) / 36 * 100}%` } as React.CSSProperties} />
+            <div className="range-caption"><span>FINER DOTS</span><span>COARSER DOTS</span></div>
+            <div className="slider-label"><label htmlFor="halftone-contrast">Contrast</label><output htmlFor="halftone-contrast">{halftoneParams.contrast.toFixed(2)}</output></div>
+            <input id="halftone-contrast" type="range" min={effects.halftone.controls.contrast.min} max={effects.halftone.controls.contrast.max} step={effects.halftone.controls.contrast.step} value={halftoneParams.contrast} onChange={(event) => send({ type: 'edit', effectId: 'halftone', params: { contrast: Number(event.target.value) } })} style={{ '--range-progress': `${(halftoneParams.contrast - 0.5) / 1.5 * 100}%` } as React.CSSProperties} />
+            <div className="range-caption"><span>SOFTER</span><span>STRONGER</span></div>
+            <div className="palette-select"><label htmlFor="halftone-palette">Palette</label><select id="halftone-palette" value={halftoneParams.palette} onChange={(event) => send({ type: 'edit', effectId: 'halftone', params: { palette: event.target.value as PaletteId } })}>{effects.halftone.controls.palette.values.map((id) => <option key={id} value={id}>{palettes[id].name}</option>)}</select></div>
           </> : <>
             <div className="slider-label"><label htmlFor="block-size">Block size</label><output htmlFor="block-size">{pixelationParams.blockSize} units</output></div>
             <input id="block-size" type="range" min={effects.pixelation.controls.blockSize.min} max={effects.pixelation.controls.blockSize.max} step={effects.pixelation.controls.blockSize.step} value={pixelationParams.blockSize} onChange={(event) => send({ type: 'edit', effectId: 'pixelation', params: { blockSize: Number(event.target.value) } })} style={{ '--range-progress': `${(pixelationParams.blockSize - 4) / 60 * 100}%` } as React.CSSProperties} />

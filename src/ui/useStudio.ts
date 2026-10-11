@@ -19,6 +19,7 @@ function snapshot(session: Session, uploads: Map<string, Upload>): RenderSnapsho
   if (session.effectId === 'dither') return { revision: session.revision, source, effectId: 'dither', params: session.parametersByEffect.dither }
   if (session.effectId === 'pixelation') return { revision: session.revision, source, effectId: 'pixelation', params: session.parametersByEffect.pixelation }
   if (session.effectId === 'edge') return { revision: session.revision, source, effectId: 'edge', params: session.parametersByEffect.edge }
+  if (session.effectId === 'halftone') return { revision: session.revision, source, effectId: 'halftone', params: session.parametersByEffect.halftone }
   return { revision: session.revision, source, effectId: 'threshold', params: session.parametersByEffect.threshold }
 }
 
