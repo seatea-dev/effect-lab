@@ -1,6 +1,7 @@
 import { threshold } from '../effects/threshold'
 import { dither } from '../effects/dither'
 import { COLOR_COUNTS, pixelate } from '../effects/pixelation'
+import { halftone } from '../effects/halftone'
 import { edgeDetect } from '../effects/edgeDetection'
 import type { EffectSelection, ThresholdParams } from '../effects/types'
 import type { DitherParams } from '../effects/dither'
@@ -43,6 +44,18 @@ export const effects = {
     controls: { sensitivity: { min: 0, max: 100, step: 1, label: 'Sensitivity' }, invert: { label: 'Invert palette' } },
     process: edgeDetect,
   },
+  halftone: {
+    id: 'halftone' as const,
+    name: 'Halftone',
+    description: 'Print light and shadow with a field of measured ink dots.',
+    defaults: { spacing: 10, contrast: 1, palette: 'ink' } satisfies import('../effects/halftone').HalftoneParams,
+    controls: {
+      spacing: { min: 4, max: 40, step: 1, label: 'Dot spacing' },
+      contrast: { min: 0.5, max: 2, step: 0.05, label: 'Contrast' },
+      palette: { label: 'Palette', values: ['ink', 'terminal', 'vintage'] as const },
+    },
+    process: halftone,
+  },
 }
 
 export type PresetDefinition = { id: string; name: string } & EffectSelection
@@ -59,11 +72,16 @@ export const blueprintPreset = {
   id: 'blueprint', name: 'Blueprint', effectId: 'edge', params: { sensitivity: 60, invert: false },
 } satisfies PresetDefinition
 
+export const newsprintPreset = {
+  id: 'newsprint', name: 'Newsprint', effectId: 'halftone', params: { spacing: 8, contrast: 1.15, palette: 'ink' },
+} satisfies PresetDefinition
+
 export const presets: readonly PresetDefinition[] = [
   vintageDitherPreset,
   { id: 'ink', name: 'Ink', effectId: 'threshold', params: { cutoff: 140, invert: false } },
   mosaicPreset,
   blueprintPreset,
+  newsprintPreset,
 ]
 
 if (import.meta.env.DEV) validateDefinitions(effects, presets)

@@ -2,6 +2,8 @@ import { effects } from '../definitions/effects'
 import { drawPixelation } from '../effects/pixelation'
 import { edgeDetectBatched } from '../effects/edgeDetection'
 import type { PixelationPlan } from '../effects/pixelation'
+import { drawHalftone } from '../effects/halftone'
+import type { HalftonePlan } from '../effects/halftone'
 import { PAPER_CSS } from '../definitions/palettes'
 import { validateUpload } from './upload'
 import { imageSizes } from './sizing'
@@ -16,7 +18,7 @@ let instanceId = ''
 let latestRevision = 0
 let desiredSource: RenderSnapshot['source'] | undefined
 let prepared: { source: RenderSnapshot['source']; sizes: ImageSizes; pixels: Uint8ClampedArray; thumbnail?: Blob } | undefined
-let processed: { key: string; canvas: OffscreenCanvas } | { key: string; pixelation: PixelationPlan } | undefined
+let processed: { key: string; canvas: OffscreenCanvas } | { key: string; pixelation: PixelationPlan } | { key: string; halftone: HalftonePlan } | undefined
 let running = false
 let activeAbortController: AbortController | undefined
 const yieldToMessages = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
@@ -93,6 +95,15 @@ async function process(request: RenderRequest, abortController: AbortController)
           result = job.next()
         }
         processed = { key, pixelation: result.value }
+      } else if (request.effectId === 'halftone') {
+        const job = effects.halftone.process(image.pixels, width, height, image.sizes.source.width, image.sizes.source.height, request.params)
+        let result = job.next()
+        while (!result.done) {
+          await yieldToMessages()
+          if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+          result = job.next()
+        }
+        processed = { key, halftone: result.value }
       } else {
         let pixels: Uint8ClampedArray<ArrayBuffer>
         if (request.effectId === 'edge') {
@@ -130,10 +141,13 @@ async function process(request: RenderRequest, abortController: AbortController)
     }
     if (request.kind === 'preview') {
       let bitmap: ImageBitmap
-      if ('pixelation' in processed) {
+      if ('pixelation' in processed || 'halftone' in processed) {
         const { width, height } = image.sizes.analysis
         const { output, context } = canvas(width, height)
-        const job = drawPixelation(processed.pixelation, context, width, height)
+        if ('halftone' in processed) { context.fillStyle = `rgb(${processed.halftone.paper.join(' ')})`; context.fillRect(0, 0, width, height) }
+        const job = 'pixelation' in processed
+          ? drawPixelation(processed.pixelation, context, width, height)
+          : drawHalftone(processed.halftone, context, width, height)
         let result = job.next()
         while (!result.done) {
           await yieldToMessages()
@@ -149,8 +163,11 @@ async function process(request: RenderRequest, abortController: AbortController)
     } else {
       const { width, height } = image.sizes.export
       const { output, context } = canvas(width, height)
-      if ('pixelation' in processed) {
-        const job = drawPixelation(processed.pixelation, context, width, height)
+      if ('pixelation' in processed || 'halftone' in processed) {
+        if ('halftone' in processed) { context.fillStyle = `rgb(${processed.halftone.paper.join(' ')})`; context.fillRect(0, 0, width, height) }
+        const job = 'pixelation' in processed
+          ? drawPixelation(processed.pixelation, context, width, height)
+          : drawHalftone(processed.halftone, context, width, height)
         let result = job.next()
         while (!result.done) {
           await yieldToMessages()

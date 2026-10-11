@@ -3,6 +3,8 @@ import type { ClientMessage, WorkerMessage } from '../src/rendering/protocol'
 
 const messages: WorkerMessage[] = []
 let receive: ((event: MessageEvent<ClientMessage>) => void) | null = null
+let arcCount = 0
+let invalidateAt = 0
 
 class Canvas {
   width: number
@@ -12,6 +14,14 @@ class Canvas {
     return {
       fillStyle: '', imageSmoothingEnabled: true,
       fillRect() {}, drawImage() {}, putImageData() {},
+      save() {}, restore() {}, beginPath() {}, rect() {}, clip() {}, fill() {},
+      arc() {
+        arcCount++
+        if (invalidateAt && arcCount === invalidateAt) {
+          const source = { id: 'dots', url: '/dots.jpg' }
+          receive!({ data: { type: 'invalidate', instanceId: 'test-worker', revision: 2, source } } as MessageEvent<ClientMessage>)
+        }
+      },
       getImageData: (_x: number, _y: number, width: number, height: number) => ({ data: new Uint8ClampedArray(width * height * 4) }),
     }
   }
@@ -23,6 +33,8 @@ afterEach(() => {
   vi.resetModules()
   messages.length = 0
   receive = null
+  arcCount = 0
+  invalidateAt = 0
 })
 
 test('an unresolved obsolete sample fetch does not block the latest selection', async () => {
@@ -87,4 +99,33 @@ test('an unresolved obsolete sample fetch does not block the latest selection', 
   vi.stubGlobal('setTimeout', nativeSetTimeout)
   expect(fetch.mock.calls.map(([url]) => url)).toContain('/latest.jpg')
   expect(messages.some((message) => message.type === 'preview' && [1, 2].includes(message.request.requestId))).toBe(false)
+})
+
+test('a stale halftone preview is discarded after cooperative dot drawing yields', async () => {
+  const scope = {
+    onmessage: null as ((event: MessageEvent<ClientMessage>) => void) | null,
+    postMessage: (message: WorkerMessage) => messages.push(message),
+  }
+  vi.stubGlobal('self', scope)
+  vi.stubGlobal('OffscreenCanvas', Canvas)
+  vi.stubGlobal('ImageData', class { constructor(public data: Uint8ClampedArray, public width: number, public height: number) {} })
+  vi.stubGlobal('createImageBitmap', async () => ({ width: 64, height: 64, close() {} }))
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(new Blob(['image']), { status: 200 })))
+
+  await import('../src/rendering/image.worker')
+  receive = scope.onmessage
+  receive!({ data: { type: 'hello', instanceId: 'test-worker' } } as MessageEvent<ClientMessage>)
+  await vi.waitFor(() => expect(messages.some((message) => message.type === 'ready')).toBe(true))
+
+  const source = { id: 'dots', url: '/dots.jpg' }
+  const request = {
+    type: 'render' as const, instanceId: 'test-worker', requestId: 1, revision: 1, kind: 'preview' as const,
+    source, effectId: 'halftone' as const, params: { spacing: 4, contrast: 1, palette: 'ink' as const },
+  }
+  receive!({ data: { type: 'invalidate', instanceId: 'test-worker', revision: 1, source } } as MessageEvent<ClientMessage>)
+  invalidateAt = 512 // Eight rows of 64 dots; the generator yields after this batch.
+  receive!({ data: request } as MessageEvent<ClientMessage>)
+
+  await vi.waitFor(() => expect(messages.some((message) => message.type === 'cancelled' && message.request.requestId === 1)).toBe(true))
+  expect(messages.some((message) => message.type === 'preview' && message.request.requestId === 1)).toBe(false)
 })
