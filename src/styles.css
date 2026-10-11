@@ -141,6 +141,9 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 9px; border-radius: 50
 .preset-card + .preset-card { margin-top: 10px; }
 .vintage-swatch { background: #e4d5b7; color: #483b32; }
 .vintage-swatch > span:first-child, .vintage-swatch .swatch-square { background: #483b32; }
+.mosaic-swatch { background: #b8c48a; color: #283a30; }
+.mosaic-swatch > span:first-child { background: #d46f50; border-radius: 2px; }
+.mosaic-swatch .swatch-square { background: #385a47; width: 19px; height: 19px; }
 .palette-select { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .palette-select label { font-size: 12px; }
 .palette-select select { font: inherit; font-size: 11px; color: #e7eae3; border: 1px solid #48513e; background: #20271c; border-radius: 4px; padding: 7px 10px; }

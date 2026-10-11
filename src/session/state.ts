@@ -25,7 +25,7 @@ export type SessionAction =
 
 export function createSession(sourceId: string): Session {
   return { sourceId, pendingSourceId: null, sourceIntent: 0, retainedUploadId: null, effectId: vintageDitherPreset.effectId, parametersByEffect: {
-    threshold: { ...effects.threshold.defaults }, dither: { ...vintageDitherPreset.params },
+    threshold: { ...effects.threshold.defaults }, dither: { ...vintageDitherPreset.params }, pixelation: { ...effects.pixelation.defaults },
   }, presetId: vintageDitherPreset.id, revision: 1 }
 }
 
@@ -33,12 +33,9 @@ export function isModified(session: Session): boolean {
   if (!session.presetId) return false
   const preset = getPreset(session.presetId)
   if (preset.effectId !== session.effectId) return true
-  if (preset.effectId === 'dither') {
-    const params = session.parametersByEffect.dither
-    return params.contrast !== preset.params.contrast || params.palette !== preset.params.palette
-  }
-  const params = session.parametersByEffect.threshold
-  return params.cutoff !== preset.params.cutoff || params.invert !== preset.params.invert
+  const parameters = session.parametersByEffect[session.effectId] as Record<string, unknown>
+  const defaults = preset.params as Record<string, unknown>
+  return Object.keys(defaults).some((name) => parameters[name] !== defaults[name])
 }
 
 export function sessionReducer(state: Session, action: SessionAction): Session {
