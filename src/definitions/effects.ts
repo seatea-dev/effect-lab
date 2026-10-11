@@ -3,12 +3,26 @@ import { dither } from '../effects/dither'
 import { COLOR_COUNTS, pixelate } from '../effects/pixelation'
 import { halftone } from '../effects/halftone'
 import { edgeDetect } from '../effects/edgeDetection'
+import { ascii } from '../effects/ascii'
 import type { EffectSelection, ThresholdParams } from '../effects/types'
 import type { DitherParams } from '../effects/dither'
 import type { PixelationParams } from '../effects/pixelation'
+import type { AsciiParams } from '../effects/ascii'
 import { validateDefinitions } from './validate'
 
 export const effects = {
+  ascii: {
+    id: 'ascii' as const,
+    name: 'ASCII Art',
+    description: 'Build a tonal image from measured character shapes.',
+    defaults: { characterHeight: 24, contrast: 1, palette: 'ink' } satisfies AsciiParams,
+    controls: {
+      characterHeight: { min: 12, max: 64, step: 1, label: 'Character height' },
+      contrast: { min: 0.5, max: 2, step: 0.05, label: 'Contrast' },
+      palette: { label: 'Palette', values: ['ink', 'terminal', 'vintage'] as const },
+    },
+    process: ascii,
+  },
   threshold: {
     id: 'threshold' as const,
     name: 'Threshold',
@@ -76,7 +90,12 @@ export const newsprintPreset = {
   id: 'newsprint', name: 'Newsprint', effectId: 'halftone', params: { spacing: 8, contrast: 1.15, palette: 'ink' },
 } satisfies PresetDefinition
 
+export const terminalPreset = {
+  id: 'terminal', name: 'Terminal', effectId: 'ascii', params: { characterHeight: 20, contrast: 1.25, palette: 'terminal' },
+} satisfies PresetDefinition
+
 export const presets: readonly PresetDefinition[] = [
+  terminalPreset,
   vintageDitherPreset,
   { id: 'ink', name: 'Ink', effectId: 'threshold', params: { cutoff: 140, invert: false } },
   mosaicPreset,

@@ -4,6 +4,9 @@ import { edgeDetectBatched } from '../effects/edgeDetection'
 import type { PixelationPlan } from '../effects/pixelation'
 import { drawHalftone } from '../effects/halftone'
 import type { HalftonePlan } from '../effects/halftone'
+import { drawAscii } from '../effects/ascii'
+import type { AsciiPlan } from '../effects/ascii'
+import { GLYPH_ATLAS_URL } from '../effects/asciiAtlas'
 import { PAPER_CSS } from '../definitions/palettes'
 import { validateUpload } from './upload'
 import { imageSizes } from './sizing'
@@ -18,9 +21,11 @@ let instanceId = ''
 let latestRevision = 0
 let desiredSource: RenderSnapshot['source'] | undefined
 let prepared: { source: RenderSnapshot['source']; sizes: ImageSizes; pixels: Uint8ClampedArray; thumbnail?: Blob } | undefined
-let processed: { key: string; canvas: OffscreenCanvas } | { key: string; pixelation: PixelationPlan } | { key: string; halftone: HalftonePlan } | undefined
+let processed: { key: string; canvas: OffscreenCanvas } | { key: string; pixelation: PixelationPlan } | { key: string; halftone: HalftonePlan } | { key: string; ascii: AsciiPlan } | undefined
 let running = false
 let activeAbortController: AbortController | undefined
+let glyphAtlas: ImageBitmap | undefined
+let glyphAtlasLoad: Promise<ImageBitmap> | undefined
 const yieldToMessages = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 const isCurrent = (request: RenderRequest) => request.instanceId === instanceId && request.revision === latestRevision
 const sameSource = (a: RenderSnapshot['source'], b?: RenderSnapshot['source']) => a.id === b?.id && a.url === b.url
@@ -33,6 +38,21 @@ function waitFor<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
     signal.addEventListener('abort', cancel, { once: true })
     promise.then((value) => { cleanup(); resolve(value) }, (error: unknown) => { cleanup(); reject(error) })
   })
+}
+
+function loadGlyphAtlas(): Promise<ImageBitmap> {
+  if (glyphAtlas) return Promise.resolve(glyphAtlas)
+  if (!glyphAtlasLoad) {
+    glyphAtlasLoad = fetch(GLYPH_ATLAS_URL)
+      .then((response) => {
+        if (!response.ok) throw new Error('The Terminal glyph atlas could not be loaded.')
+        return response.blob()
+      })
+      .then((blob) => createImageBitmap(blob))
+      .then((bitmap) => { glyphAtlas = bitmap; return bitmap })
+      .catch((error: unknown) => { glyphAtlasLoad = undefined; throw error })
+  }
+  return glyphAtlasLoad
 }
 
 function canvas(width: number, height: number) {
@@ -104,6 +124,15 @@ async function process(request: RenderRequest, abortController: AbortController)
           result = job.next()
         }
         processed = { key, halftone: result.value }
+      } else if (request.effectId === 'ascii') {
+        const job = effects.ascii.process(image.pixels, width, height, image.sizes.source.width, image.sizes.source.height, request.params)
+        let result = job.next()
+        while (!result.done) {
+          await yieldToMessages()
+          if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+          result = job.next()
+        }
+        processed = { key, ascii: result.value }
       } else {
         let pixels: Uint8ClampedArray<ArrayBuffer>
         if (request.effectId === 'edge') {
@@ -141,13 +170,21 @@ async function process(request: RenderRequest, abortController: AbortController)
     }
     if (request.kind === 'preview') {
       let bitmap: ImageBitmap
-      if ('pixelation' in processed || 'halftone' in processed) {
+      if ('pixelation' in processed || 'halftone' in processed || 'ascii' in processed) {
         const { width, height } = image.sizes.analysis
         const { output, context } = canvas(width, height)
-        if ('halftone' in processed) { context.fillStyle = `rgb(${processed.halftone.paper.join(' ')})`; context.fillRect(0, 0, width, height) }
-        const job = 'pixelation' in processed
-          ? drawPixelation(processed.pixelation, context, width, height)
-          : drawHalftone(processed.halftone, context, width, height)
+        if ('halftone' in processed) {
+          context.fillStyle = `rgb(${processed.halftone.paper.join(' ')})`
+          context.fillRect(0, 0, width, height)
+        }
+        let job: Generator<void, void>
+        if ('pixelation' in processed) job = drawPixelation(processed.pixelation, context, width, height)
+        else if ('halftone' in processed) job = drawHalftone(processed.halftone, context, width, height)
+        else {
+          const atlas = await waitFor(loadGlyphAtlas(), abortController.signal)
+          if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+          job = drawAscii(processed.ascii, context, width, height, atlas)
+        }
         let result = job.next()
         while (!result.done) {
           await yieldToMessages()
@@ -163,11 +200,19 @@ async function process(request: RenderRequest, abortController: AbortController)
     } else {
       const { width, height } = image.sizes.export
       const { output, context } = canvas(width, height)
-      if ('pixelation' in processed || 'halftone' in processed) {
-        if ('halftone' in processed) { context.fillStyle = `rgb(${processed.halftone.paper.join(' ')})`; context.fillRect(0, 0, width, height) }
-        const job = 'pixelation' in processed
-          ? drawPixelation(processed.pixelation, context, width, height)
-          : drawHalftone(processed.halftone, context, width, height)
+      if ('pixelation' in processed || 'halftone' in processed || 'ascii' in processed) {
+        if ('halftone' in processed) {
+          context.fillStyle = `rgb(${processed.halftone.paper.join(' ')})`
+          context.fillRect(0, 0, width, height)
+        }
+        let job: Generator<void, void>
+        if ('pixelation' in processed) job = drawPixelation(processed.pixelation, context, width, height)
+        else if ('halftone' in processed) job = drawHalftone(processed.halftone, context, width, height)
+        else {
+          const atlas = await waitFor(loadGlyphAtlas(), abortController.signal)
+          if (!isCurrent(request)) { scope.postMessage({ type: 'cancelled', request }); return }
+          job = drawAscii(processed.ascii, context, width, height, atlas)
+        }
         let result = job.next()
         while (!result.done) {
           await yieldToMessages()

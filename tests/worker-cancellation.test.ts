@@ -5,6 +5,8 @@ const messages: WorkerMessage[] = []
 let receive: ((event: MessageEvent<ClientMessage>) => void) | null = null
 let arcCount = 0
 let invalidateAt = 0
+let drawImageCount = 0
+let invalidateAtDraw = 0
 
 class Canvas {
   width: number
@@ -13,7 +15,13 @@ class Canvas {
   getContext() {
     return {
       fillStyle: '', imageSmoothingEnabled: true,
-      fillRect() {}, drawImage() {}, putImageData() {},
+      fillRect() {}, drawImage() {
+        drawImageCount++
+        if (invalidateAtDraw && drawImageCount === invalidateAtDraw) {
+          const source = { id: 'terminal', url: '/terminal.jpg' }
+          receive!({ data: { type: 'invalidate', instanceId: 'test-worker', revision: 2, source } } as MessageEvent<ClientMessage>)
+        }
+      }, putImageData() {},
       save() {}, restore() {}, beginPath() {}, rect() {}, clip() {}, fill() {},
       arc() {
         arcCount++
@@ -35,6 +43,8 @@ afterEach(() => {
   receive = null
   arcCount = 0
   invalidateAt = 0
+  drawImageCount = 0
+  invalidateAtDraw = 0
 })
 
 test('an unresolved obsolete sample fetch does not block the latest selection', async () => {
@@ -124,6 +134,35 @@ test('a stale halftone preview is discarded after cooperative dot drawing yields
   }
   receive!({ data: { type: 'invalidate', instanceId: 'test-worker', revision: 1, source } } as MessageEvent<ClientMessage>)
   invalidateAt = 512 // Eight rows of 64 dots; the generator yields after this batch.
+  receive!({ data: request } as MessageEvent<ClientMessage>)
+
+  await vi.waitFor(() => expect(messages.some((message) => message.type === 'cancelled' && message.request.requestId === 1)).toBe(true))
+  expect(messages.some((message) => message.type === 'preview' && message.request.requestId === 1)).toBe(false)
+})
+
+test('a stale ASCII preview is discarded after cooperative glyph drawing yields', async () => {
+  const scope = {
+    onmessage: null as ((event: MessageEvent<ClientMessage>) => void) | null,
+    postMessage: (message: WorkerMessage) => messages.push(message),
+  }
+  vi.stubGlobal('self', scope)
+  vi.stubGlobal('OffscreenCanvas', Canvas)
+  vi.stubGlobal('ImageData', class { constructor(public data: Uint8ClampedArray, public width: number, public height: number) {} })
+  vi.stubGlobal('createImageBitmap', async () => ({ width: 64, height: 130, close() {} }))
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(new Blob(['asset']), { status: 200 })))
+
+  await import('../src/rendering/image.worker')
+  receive = scope.onmessage
+  receive!({ data: { type: 'hello', instanceId: 'test-worker' } } as MessageEvent<ClientMessage>)
+  await vi.waitFor(() => expect(messages.some((message) => message.type === 'ready')).toBe(true))
+
+  const source = { id: 'terminal', url: '/terminal.jpg' }
+  const request = {
+    type: 'render' as const, instanceId: 'test-worker', requestId: 1, revision: 1, kind: 'preview' as const,
+    source, effectId: 'ascii' as const, params: { characterHeight: 12, contrast: 1, palette: 'terminal' as const },
+  }
+  receive!({ data: { type: 'invalidate', instanceId: 'test-worker', revision: 1, source } } as MessageEvent<ClientMessage>)
+  invalidateAtDraw = 2 // Source preparation draws once. The next call begins atlas glyph drawing.
   receive!({ data: request } as MessageEvent<ClientMessage>)
 
   await vi.waitFor(() => expect(messages.some((message) => message.type === 'cancelled' && message.request.requestId === 1)).toBe(true))

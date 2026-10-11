@@ -79,6 +79,23 @@ test('Blueprint applies edge settings, remains associated while edited, and rese
   expect(sessionReducer(switched, { type: 'reset-effect' })).toMatchObject({ presetId: null, parametersByEffect: { edge: { sensitivity: 50, invert: false } } })
 })
 
+test('Terminal applies ASCII settings, remembers edits across sources and effects, and keeps resets separate', () => {
+  let session = sessionReducer(createSession('urban'), { type: 'preset', id: 'terminal' })
+  expect(session).toMatchObject({ sourceId: 'urban', effectId: 'ascii', presetId: 'terminal', parametersByEffect: { ascii: { characterHeight: 20, contrast: 1.25, palette: 'terminal' } } })
+  session = sessionReducer(session, { type: 'edit', effectId: 'ascii', params: { characterHeight: 37, contrast: 1.55, palette: 'vintage' } })
+  expect(isModified(session)).toBe(true)
+  session = acceptSource(session, 'nature')
+  expect(session).toMatchObject({ sourceId: 'nature', presetId: 'terminal', parametersByEffect: { ascii: { characterHeight: 37, contrast: 1.55, palette: 'vintage' } } })
+  session = sessionReducer(session, { type: 'effect', id: 'threshold' })
+  session = sessionReducer(session, { type: 'effect', id: 'ascii' })
+  expect(session.parametersByEffect.ascii).toEqual({ characterHeight: 37, contrast: 1.55, palette: 'vintage' })
+  expect(session.presetId).toBeNull()
+  expect(sessionReducer(session, { type: 'reset-effect' })).toMatchObject({ sourceId: 'nature', presetId: null, parametersByEffect: { ascii: { characterHeight: 24, contrast: 1, palette: 'ink' } } })
+  const modified = sessionReducer(sessionReducer(createSession('nature'), { type: 'preset', id: 'terminal' }), { type: 'edit', effectId: 'ascii', params: { characterHeight: 44 } })
+  expect(isModified(modified)).toBe(true)
+  expect(sessionReducer(modified, { type: 'reset-preset' })).toMatchObject({ sourceId: 'nature', presetId: 'terminal', parametersByEffect: { ascii: { characterHeight: 20, contrast: 1.25, palette: 'terminal' } } })
+})
+
 test('Pixelation remembers edits across effect and source changes and keeps resets separate', () => {
   let session = sessionReducer(createSession('urban'), { type: 'preset', id: 'mosaic' })
   session = sessionReducer(session, { type: 'edit', effectId: 'pixelation', params: { blockSize: 31, colorCount: 125 } })
