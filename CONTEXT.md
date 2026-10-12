@@ -1,4 +1,4 @@
-# Image-effects playground
+# Imprint
 
 A browser-based creative tool for exploring image effects with sample images or personal uploads.
 

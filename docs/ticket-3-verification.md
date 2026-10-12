@@ -1,5 +1,7 @@
 # Ticket 3 verification
 
+Local filesystem locations in this historical record are generalized as `temporary-artifacts/`. These labels identify external review artifacts, not files included in the repository.
+
 Status: implementation and independent review are complete on feature/3-sample-gallery-uploads. Final implementation approval is recorded, and the GitHub handoff is in progress.
 
 Base: 872231d5e3ed54c3bbc76cd6c7f3c0e196ca3961, Ticket 2 merge into main. Issue: https://github.com/seatea-dev/effect-lab/issues/3. Scope follows docs/spec.md, docs/product-decisions.md, and the approved docs/ticket-3-plan.md.
@@ -29,7 +31,7 @@ TDD cycles first failed for the missing upload validator, pending source selecti
 
 Production build served at /effect-lab/. Chrome 154.0.8037.99, macOS Darwin 27.0.0, Apple M6, 24 GB memory. Browser automation used the existing local Playwright installation outside this repository; no browser-test dependency was added.
 
-Evidence is in /private/tmp/effect-lab-ticket-3-evidence:
+Evidence is in temporary-artifacts/effect-lab-ticket-3-evidence:
 
 - browser-check.mjs and browser-results.json
 - browser-supplement.mjs and supplement-results.json

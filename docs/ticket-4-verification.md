@@ -1,5 +1,7 @@
 # Ticket 4 verification
 
+Local filesystem locations in this historical record are generalized as `temporary-artifacts/`. These labels identify external review artifacts, not files included in the repository.
+
 Branch: `feature/4-pixelation`. Base: `main` at `51123f8dd9d6964628800c6b56584c8b5ee2261f`. Issue: https://github.com/seatea-dev/effect-lab/issues/4. Plan approval was given before branch creation. No commit, push, PR, or merge was performed.
 
 ## Changes
@@ -32,6 +34,6 @@ Tested the production build in Chrome 154.0.8037.99 at `http://127.0.0.1:4187/ef
 
 - Uploaded a uniform-white 255 × 255 PNG, applied Mosaic, and exported it. The downloaded PNG was 255 × 255; all pixels were white with alpha 255. No transparent pixels remained.
 - Uploaded the reported 2001 × 201 image of alternating 4-pixel black and white vertical stripes, applied Mosaic, and exported it. The downloaded PNG was 2001 × 201 with no transparent pixels. Inspecting the exported PNG row directly showed color transitions at x = 4, 8, 12, 16, 20, continuing at 4-pixel intervals. This checks the target-size result rather than comparing it with an enlarged preview raster.
-- No uncaught page errors occurred. The Chrome run took about 21 seconds. Downloaded PNG evidence is in `/private/tmp/effect-lab-ticket4-review-white-255.png` and `/private/tmp/effect-lab-ticket4-review-stripes-2001.png`.
+- No uncaught page errors occurred. The Chrome run took about 21 seconds. Downloaded PNG evidence is in `temporary-artifacts/effect-lab-ticket4-review-white-255.png` and `temporary-artifacts/effect-lab-ticket4-review-stripes-2001.png`.
 
 Render latency and peak memory were not measured. Other browser engines were not tested; cross-browser checks remain part of Ticket 10.

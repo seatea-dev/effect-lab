@@ -233,7 +233,7 @@ Use a lightweight GitHub Actions workflow on pull requests and pushes to main. R
 
 Build on pull requests without deploying. Deploy only the successful main build artifact through the standard GitHub Pages Actions flow. The deploy job depends on all required checks and uses the GitHub Pages environment, Pages write permission, and OIDC token permission. Other jobs need only read access to repository contents. Use branch restrictions where available and never use pull_request_target to run untrusted change code with write permissions. The official [Pages workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages) describes the artifact and deployment requirements.
 
-Prepare deployment configuration but leave publishing disabled until the user separately approves publication and Pages eligibility is confirmed. After that approval, merging approved changes to main triggers deployment automatically. Keep the repository private. Do not push application changes directly to main or enable automatic merging as part of setup.
+Prepare deployment configuration but leave publishing disabled until the user separately approves publication and Pages eligibility is confirmed. After that approval, merging approved changes to main triggers deployment automatically. Keep the repository private throughout preparation. The owner has selected a public repository for the first release on GitHub Free, with visibility changes still gated by publication approval. Do not push application changes directly to main or enable automatic merging as part of setup.
 
 Use the actual project-repository subpath as the production Vite base. Resolve sample, thumbnail, atlas, worker, and UI asset URLs through Vite imports or its configured base, not hardcoded root paths. No router or custom-domain setup is needed. Smoke-test the production build under the repository subpath before deployment. See the official [Vite Pages deployment guidance](https://vite.dev/guide/static-deploy.html#github-pages).
 
@@ -302,7 +302,7 @@ Measure an export near 12 megapixels, confirm the UI remains responsive, and ver
 
 Required checks before each final approval are TypeScript, lint, relevant Vitest tests, production build, diff review, and browser evidence appropriate to the slice. For the final release, run the complete suite and all feature acceptance flows. Do not enforce coverage percentages or repeat unrelated tests after all checks pass without a new reason.
 
-The Pages artifact and deploy jobs currently remain disabled. While disabled, neither a failed check nor a PR build can publish. Before any separately approved enablement, review the workflow's check dependency, main-only condition, permissions, and publication eligibility. After an authorized first publication, open the actual Pages URL and repeat the core smoke flow.
+The prepared Pages workflow remains blocked by the `IMPRINT_PAGES_ENABLED` repository variable, public visibility, and main-only event conditions. The variable remains absent or disabled during preparation. Deployment requires successful checks, and PR builds cannot publish. Before separately approved enablement, review permissions and publication eligibility. After an authorized first publication, open the actual Pages URL and repeat the core smoke flow.
 
 ## Out of scope
 

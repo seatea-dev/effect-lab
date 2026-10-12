@@ -1,8 +1,10 @@
 # Ticket 9 verification: hold-to-compare
 
+Local filesystem locations in this historical record are generalized as `temporary-artifacts/`. These labels identify external review artifacts, not files included in the repository.
+
 ## Automated checks
 
-All checks ran in the isolated `feature/9-hold-to-compare` worktree at `/private/tmp/effect-lab-ticket9`, based on `734f57347ecc1fcfac54b8a0eb1335680a97086e`.
+All checks ran in the isolated `feature/9-hold-to-compare` worktree at `temporary-artifacts/effect-lab-ticket9`, based on `734f57347ecc1fcfac54b8a0eb1335680a97086e`.
 
 | Check | Result |
 | --- | --- |
@@ -22,10 +24,10 @@ The production preview ran at `http://127.0.0.1:4179/effect-lab/`. Headless Goog
 - Original and processed pixels differed, both canvases were opaque, and both canvases had identical fitted bounds.
 - Space and Enter press/release behavior, including ignored repeated keydown.
 - Pointer up, pointer cancel, lost pointer capture, comparison-button blur, window blur, and document visibility loss.
-- PNG export while the original was displayed. The downloaded `1920 × 1540` PNG matched the processed preview at every RGB pixel and had zero transparent pixels. The PNG was saved outside the repository at `/private/tmp/effect-lab-ticket9-export.png`.
+- PNG export while the original was displayed. The downloaded `1920 × 1540` PNG matched the processed preview at every RGB pixel and had zero transparent pixels. The PNG was saved outside the repository at `temporary-artifacts/effect-lab-ticket9-export.png`.
 - No browser page errors.
 
-The temporary browser script and screenshot are outside the repository at `/private/tmp/effect-lab-ticket9-browser.mjs` and `/private/tmp/effect-lab-ticket9-comparison.png`. The CUA Chrome surface was unavailable, so this is headless production-browser verification rather than a manual interactive Chrome session.
+The temporary browser script and screenshot are outside the repository at `temporary-artifacts/effect-lab-ticket9-browser.mjs` and `temporary-artifacts/effect-lab-ticket9-comparison.png`. The CUA Chrome surface was unavailable, so this is headless production-browser verification rather than a manual interactive Chrome session.
 
 ## Remaining limits
 

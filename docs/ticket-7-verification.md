@@ -1,5 +1,7 @@
 # Ticket 7 verification: Terminal ASCII
 
+Local filesystem locations in this historical record are generalized as `temporary-artifacts/`. These labels identify external review artifacts, not files included in the repository.
+
 ## Scope
 
 Added Terminal ASCII as a single active effect with character height, contrast, and fixed-palette controls. The built-in Terminal preset uses height 20, contrast 1.25, and the Terminal palette. The bundled glyph atlas is derived from IBM Plex Mono Regular 2.5.0; its source, license, attribution, measured coverage ramp, and checksums are recorded in [assets.md](assets.md).
@@ -30,7 +32,7 @@ Confirmed ASCII defaults (24, 1.00, Ink), Terminal preset values (20, 1.25, Term
 
 Uploaded a white 513 × 317 PNG. Preview and export each contained one color, Paper `#F4F1E8`, with alpha 255, and had the same hash `a50b277f`. Uploaded a horizontal grayscale gradient at 640 × 360 and used Terminal palette with contrast 1.55. Preview and export each contained 248 distinct RGB colors, had alpha 255 at every pixel, and had the same hash `70d2984d`.
 
-The temporary Chrome screenshot is at `/private/tmp/effect-lab-ticket7-ascii.png` and is not part of the project. The regenerated atlas SHA-256 is `12616a96ef67522f7a9658858a06df9c95f1de578f88d3b8512fe578e5b39117`.
+The temporary Chrome screenshot is at `temporary-artifacts/effect-lab-ticket7-ascii.png` and is not part of the project. The regenerated atlas SHA-256 is `12616a96ef67522f7a9658858a06df9c95f1de578f88d3b8512fe578e5b39117`.
 
 ## Limitations
 
