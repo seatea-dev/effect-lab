@@ -77,7 +77,7 @@ Algorithms receive immutable opaque sRGB pixel data and validated parameters. Ra
 
 Use one dedicated module worker with OffscreenCanvas for image preparation, processing, drawing, and PNG encoding. The main thread receives completed preview bitmaps and download blobs. Keep the visible canvas on the main thread so it only displays results the controller accepts. Do not let the worker paint directly into the visible canvas.
 
-Target current stable desktop Chrome, Edge, Firefox, and Safari. Check worker, bitmap decoding, OffscreenCanvas 2D, and PNG encoding capabilities at startup. Verify the actual worker capability with a handshake. Unsupported environments receive a clear explanation rather than a second rendering implementation in V1. Browser smoke testing is required before claiming support. OffscreenCanvas and bitmap APIs are defined in the [HTML canvas standard](https://html.spec.whatwg.org/multipage/canvas.html#the-offscreencanvas-interface) and [bitmap standard](https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap).
+Target current stable desktop Chrome and Safari for release verification. Check worker, bitmap decoding, OffscreenCanvas 2D, and PNG encoding capabilities at startup. Verify actual worker capability with a handshake. Unsupported environments receive a clear explanation rather than a second rendering implementation in V1. Claim support only for engines verified in a real browser. Edge and Firefox are not part of the Ticket 10 release claim unless separately verified. OffscreenCanvas and bitmap APIs are defined in the [HTML canvas standard](https://html.spec.whatwg.org/multipage/canvas.html#the-offscreencanvas-interface) and [bitmap standard](https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap).
 
 ### Definitions and parameter contracts
 
@@ -302,7 +302,7 @@ Measure an export near 12 megapixels, confirm the UI remains responsive, and ver
 
 Required checks before each final approval are TypeScript, lint, relevant Vitest tests, production build, diff review, and browser evidence appropriate to the slice. For the final release, run the complete suite and all feature acceptance flows. Do not enforce coverage percentages or repeat unrelated tests after all checks pass without a new reason.
 
-CI must demonstrate that a failing required check prevents deployment and that PR builds cannot deploy. Review workflow permissions and main-only conditions. After an authorized first publication, open the actual Pages URL and repeat the core smoke flow.
+The Pages artifact and deploy jobs currently remain disabled. While disabled, neither a failed check nor a PR build can publish. Before any separately approved enablement, review the workflow's check dependency, main-only condition, permissions, and publication eligibility. After an authorized first publication, open the actual Pages URL and repeat the core smoke flow.
 
 ## Out of scope
 
@@ -323,4 +323,4 @@ Unresolved external prerequisites are authenticated GitHub access, intended owne
 
 The fixed analysis-grid approach, initial parameter values, test boundaries, and lightweight worker design are approved technical decisions. Analysis/output limits and visual defaults may be tuned after evidence, with any behavioral or scope change brought back for approval.
 
-Next steps are repository verification/setup, publication of the ten approved GitHub Issues, and approval of Ticket 1's brief implementation plan. Use the single-agent project workflow. Keep final approval before commits, pushes, PR creation, or merges, and separate publication approval before enabling Pages.
+Ticket 10 release evidence and outstanding limits are recorded in [ticket-10-verification.md](ticket-10-verification.md). The repository remains private, Pages stays disabled, and this verification record does not authorize committing, pushing, PR creation, merging, or publication. Keep the user's final approval gate and separate publication approval.

@@ -49,7 +49,7 @@ Use a small collection of fixed palettes. A custom color picker is outside V1. A
 
 ## Supported experience
 
-V1 targets desktop browsers. Mobile-specific layouts and mobile editing requirements are outside V1.
+V1 targets desktop browsers. Mobile-specific layouts and mobile editing requirements are outside V1. Browser support claims require real-browser evidence for that engine; Ticket 10 records the engines actually verified for this release.
 
 Use an original dark visual identity, clear typography and hierarchy, subtle motion and hover states, and a prominent preview. Grainrad is product inspiration, not a design to copy.
 
