@@ -29,10 +29,11 @@ function releaseUpload(upload: Upload) {
   if (upload.thumbnailUrl) URL.revokeObjectURL(upload.thumbnailUrl)
 }
 
-export function useStudio(canvas: RefObject<HTMLCanvasElement | null>) {
+export function useStudio(canvas: RefObject<HTMLCanvasElement | null>, originalCanvas: RefObject<HTMLCanvasElement | null>) {
   const current = useRef(createSession(urbanSample.id))
   const [session, setSession] = useState(current.current)
   const [displaySource, setDisplaySource] = useState<SampleDefinition>(urbanSample)
+  const [comparisonSourceId, setComparisonSourceId] = useState<string | undefined>()
   const [render, dispatchRender] = useReducer(renderStateReducer, initialRenderState)
   const controller = useRef<RenderController | null>(null)
   const uploads = useRef(new Map<string, Upload>())
@@ -58,18 +59,25 @@ export function useStudio(canvas: RefObject<HTMLCanvasElement | null>) {
       const next = new RenderController(worker as WorkerPort, {
         onState: (value) => dispatchRender({ type: 'status', value }),
         onSourceError: (request, message) => failSource(request.source.id, message),
-        onPreview: (bitmap, request, sizes, thumbnail) => {
+        onPreview: (bitmap, request, sizes, thumbnail, originalBitmap) => {
           const target = canvas.current
+          const originalTarget = originalCanvas.current
           const context = target?.getContext('2d')
-          if (!target || !context) throw new Error('The preview canvas is unavailable.')
+          const originalContext = originalTarget?.getContext('2d')
+          if (!target || !context || !originalTarget || !originalContext) throw new Error('The preview canvas is unavailable.')
           const upload = uploads.current.get(request.source.id)
           if (upload && !upload.thumbnailUrl && thumbnail) upload.thumbnailUrl = URL.createObjectURL(thumbnail)
           target.width = bitmap.width
           target.height = bitmap.height
           context.imageSmoothingEnabled = false
           context.drawImage(bitmap, 0, 0)
+          originalTarget.width = originalBitmap.width
+          originalTarget.height = originalBitmap.height
+          originalContext.imageSmoothingEnabled = false
+          originalContext.drawImage(originalBitmap, 0, 0)
           const descriptor = upload ?? getSample(request.source.id)
           setDisplaySource({ ...descriptor, ...sizes.source })
+          setComparisonSourceId(request.source.id)
           const state = current.current
           if (state.pendingSourceId === request.source.id) {
             const accepted = sessionReducer(state, { type: 'source-ready', id: request.source.id, intent: state.sourceIntent, upload: !!upload })
@@ -102,7 +110,7 @@ export function useStudio(canvas: RefObject<HTMLCanvasElement | null>) {
     } catch {
       dispatchRender({ type: 'status', value: { phase: 'error', exporting: false, error: 'This browser could not start the image worker. Try a current desktop browser.' } })
     }
-  }, [canvas, failSource])
+  }, [canvas, originalCanvas, failSource])
 
   useEffect(() => {
     start()
@@ -111,12 +119,13 @@ export function useStudio(canvas: RefObject<HTMLCanvasElement | null>) {
     return () => {
       controller.current?.dispose()
       controller.current = null
+      if (originalCanvas.current) { originalCanvas.current.width = 0; originalCanvas.current.height = 0 }
       for (const [url, timer] of urls) { clearTimeout(timer); URL.revokeObjectURL(url) }
       urls.clear()
       for (const upload of files.values()) releaseUpload(upload)
       files.clear()
     }
-  }, [start])
+  }, [start, originalCanvas])
 
   const send = (action: SessionAction) => {
     const state = current.current
@@ -142,6 +151,6 @@ export function useStudio(canvas: RefObject<HTMLCanvasElement | null>) {
     if (file.size > UPLOAD_BYTE_LIMIT) failSource(id, 'Choose an image no larger than 20 MB.')
   }
 
-  return { session, render, displaySource, retainedUpload: session.retainedUploadId ? uploads.current.get(session.retainedUploadId) : undefined,
+  return { session, render, displaySource, comparisonSourceId, retainedUpload: session.retainedUploadId ? uploads.current.get(session.retainedUploadId) : undefined,
     send, upload, retry: start, exportPng: () => !current.current.pendingSourceId && controller.current?.exportPng() }
 }

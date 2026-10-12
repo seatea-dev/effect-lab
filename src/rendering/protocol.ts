@@ -10,7 +10,7 @@ export type ClientMessage = RenderRequest | { type: 'hello'; instanceId: string 
 export type WorkerMessage =
   | { type: 'ready'; instanceId: string }
   | { type: 'unsupported'; instanceId: string; message: string }
-  | { type: 'preview'; request: RenderRequest; bitmap: ImageBitmap; thumbnail?: Blob; sizes: ImageSizes; elapsedMs: number }
+  | { type: 'preview'; request: RenderRequest; bitmap: ImageBitmap; originalBitmap: ImageBitmap; thumbnail?: Blob; sizes: ImageSizes; elapsedMs: number }
   | { type: 'export'; request: RenderRequest; blob: Blob }
   | { type: 'cancelled'; request: RenderRequest }
   | { type: 'error'; request: RenderRequest; stage?: 'source'; message: string }

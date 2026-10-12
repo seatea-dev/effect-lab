@@ -11,7 +11,7 @@ export type RenderState = {
 }
 type Callbacks = {
   onState: (state: RenderState) => void
-  onPreview: (bitmap: ImageBitmap, request: RenderRequest, sizes: ImageSizes, thumbnail?: Blob) => void
+  onPreview: (bitmap: ImageBitmap, request: RenderRequest, sizes: ImageSizes, thumbnail: Blob | undefined, originalBitmap: ImageBitmap) => void
   onSourceError?: (request: RenderRequest, message: string) => boolean
   onExport: (blob: Blob, request: RenderRequest) => void
 }
@@ -19,6 +19,10 @@ type Schedule = (callback: () => void) => () => void
 const nextFrame: Schedule = (callback) => {
   const id = requestAnimationFrame(callback)
   return () => cancelAnimationFrame(id)
+}
+const closePreview = (message: Extract<WorkerMessage, { type: 'preview' }>) => {
+  message.bitmap.close()
+  message.originalBitmap.close()
 }
 
 /** Owns one running request and one replaceable pending preview. */
@@ -113,19 +117,19 @@ export class RenderController {
     }
     const { request } = message
     if (request.instanceId !== this.instanceId || request.requestId !== this.active?.requestId || this.disposed) {
-      if (message.type === 'preview') message.bitmap.close()
+      if (message.type === 'preview') closePreview(message)
       return
     }
     this.active = undefined
     if (this.isCurrent(request)) {
       if (message.type === 'preview') {
         try {
-          this.callbacks.onPreview(message.bitmap, request, message.sizes, message.thumbnail)
+          this.callbacks.onPreview(message.bitmap, request, message.sizes, message.thumbnail, message.originalBitmap)
           this.acceptedRevision = request.revision
           this.emit({ phase: 'ready', sizes: message.sizes, elapsedMs: message.elapsedMs, error: undefined })
         } catch {
           this.emit({ phase: 'error', exporting: false, error: 'The preview could not be displayed. Please retry.' })
-        } finally { message.bitmap.close() }
+        } finally { closePreview(message) }
       } else if (message.type === 'error') {
         if (message.stage === 'source' && this.callbacks.onSourceError?.(request, message.message)) { this.schedulePreview(); return }
         this.emit(request.kind === 'export'
@@ -139,7 +143,7 @@ export class RenderController {
           this.emit({ exporting: false, notice: 'The download failed. Please try again.' })
         }
       }
-    } else if (message.type === 'preview') message.bitmap.close()
+    } else if (message.type === 'preview') closePreview(message)
     this.schedulePreview()
   }
 }
