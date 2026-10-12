@@ -2,7 +2,7 @@
 
 A browser-based digital print studio that turns photographs into pixel, ink, dot, and character patterns.
 
-Planned live demo: [seatea-dev.github.io/effect-lab](https://seatea-dev.github.io/effect-lab/). Publication is pending approval; this link is not yet verified live.
+[Live demo](https://seatea-dev.github.io/effect-lab/)
 
 ## Preview
 
@@ -38,7 +38,7 @@ npm ci
 npm run dev
 ```
 
-Open the Vite URL with the `/effect-lab/` path. The repository requires access until its visibility changes to public.
+Open the Vite URL with the `/effect-lab/` path.
 
 ```sh
 npm run build
@@ -86,6 +86,6 @@ No application source-code license has been selected. Making the repository publ
 
 ## Deployment
 
-GitHub Actions checks pull requests and main. The prepared Pages workflow deploys only a successful main build after the repository is public and its publication gate is enabled. Publication remains disabled during preparation.
+GitHub Pages hosts Imprint at the live demo link above. GitHub Actions checks pull requests and main. Successful main builds deploy automatically while the publication gate is enabled. Pull request builds cannot deploy.
 
-See [public-release preparation](docs/public-release.md) for the approval gates, Pages settings, and verification steps.
+See the [release setup record](docs/public-release.md) for the original approval gates, Pages settings, and verification steps.
