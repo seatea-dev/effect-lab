@@ -2,7 +2,7 @@
 
 A browser-based digital print studio and personal portfolio project.
 
-Ticket 3 opens on the bundled city photograph with Vintage Dither and adds five sample choices plus one retained upload. Floyd-Steinberg has contrast and fixed palette controls; Threshold and Ink remain available with cutoff and inversion. Both effects support separate resets, a live preview, and PNG export. JPEG, PNG, and WebP uploads up to 20 MB stay in the browser for this visit. Source changes preserve effect settings, and failed uploads retain the previous image. Other effects and comparison arrive in later approved tickets. Nothing is published yet.
+Imprint opens on a bundled city photograph with Vintage Dither already applied. Choose among five bundled samples or upload a JPEG, PNG, or WebP image up to 20 MB. Explore six effects and six curated presets, adjust their controls, and use the press-and-hold Show Original comparison. Export a PNG on your device; images over 12 megapixels are downscaled proportionally and identified before export. The application has no account, backend, or external image service.
 
 ## Run locally
 
@@ -23,7 +23,7 @@ npm run build
 npm run preview
 ```
 
-The production preview also lives at `/effect-lab/`. No environment variables, API keys, accounts, or backend are needed.
+The production build is configured for the `/effect-lab/` subpath. GitHub Pages deployment remains disabled, so the application is not published there. No environment variables, API keys, accounts, or backend are needed.
 
 ## Architecture
 
@@ -33,17 +33,19 @@ The production preview also lives at `/effect-lab/`. No environment variables, A
 - `src/rendering` contains sizing policy, the worker protocol, one rendering controller, and the image worker.
 - `src/ui` contains the desktop workspace and its React binding.
 
-The worker prepares a source once, using a maximum 1200-pixel analysis edge. Preview and PNG export use the same processed analysis raster. Export scales its discrete marks with nearest-neighbor sampling, preserving the pattern at the source dimensions within a provisional 12-megapixel cap. It does not add photographic detail beyond the analysis image.
+The worker prepares each selected source once, using a maximum 1200-pixel analysis edge. Pixelation, Newsprint, and Terminal ASCII retain their analyzed cells and draw that geometry at both preview and export dimensions. Threshold, Floyd-Steinberg, and Blueprint render from the analysis raster and scale to export without smoothing. PNG export preserves the source aspect ratio, uses an opaque light background, and is capped at 12 megapixels for this release. It does not add photographic detail beyond the analysis image.
 
 The controller allows one running request and one replaceable pending preview. Setting changes invalidate running results synchronously. Dither carries floating-point diffusion errors across row batches in one resumable job. The worker yields between row batches, and both sides reject results from obsolete revisions or requests. PNG results receive the same checks after encoding and before download. There is no worker pool, render graph, or persistent cache.
 
-The application needs module workers, bitmap decoding, and OffscreenCanvas 2D/PNG support. A startup handshake checks the worker's actual capabilities. Unsupported environments show a recoverable explanation. Only browsers actually tested should be claimed as verified.
+The application needs module workers, bitmap decoding, and OffscreenCanvas 2D/PNG support. A startup handshake checks the worker's actual capabilities. Unsupported environments show a recoverable explanation. Ticket 10 verified the production build in Chrome 154 under `/effect-lab/`. Safari 27 was installed but could not be automated in this environment, so Safari and other engines are not claimed as verified. Only browsers actually tested should be claimed as verified.
 
 The sample and asset licenses are documented in [asset credits](docs/assets.md). Product scope is in [product decisions](docs/product-decisions.md); technical contracts and acceptance criteria are in [the specification](docs/spec.md).
 
 ## Tests and review
 
 Vitest tests the effect processor, session actions, sizing policy, and render-request/result boundary. Transport tests reorder responses without mocking the pixel algorithm. Real-browser verification must cover the worker, actual decoded PNG pixels/dimensions, error recovery, and production subpath assets. A mock transport test alone does not establish browser compatibility.
+
+`npm run test:gallery-browser` exercises real pointer access to all six preset cards at 1440 × 900, 1280 × 800, and 1100 × 800, including reset behavior, source preservation, and a PNG signature and dimensions read from its header. It does not decode export pixels. Run it after `npm run build`; it uses an installed Google Chrome and adds no package dependency. The full release audit and screenshots are recorded in [Ticket 10 verification](docs/ticket-10-verification.md).
 
 Use one implementation agent and an issue-linked feature branch. Obtain approval of each ticket's brief plan before implementation. Use TDD at approved boundaries, run checks, and prepare a temporary handoff for independent code review in a fresh Sol session. Address blockers before final approval. The user switches models manually.
 
