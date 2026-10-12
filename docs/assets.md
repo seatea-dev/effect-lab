@@ -42,7 +42,9 @@ Each gallery thumbnail is a separately encoded JPEG with a maximum edge of 160 p
 
 Runtime transformations include orientation-aware decoding, opaque #F4F1E8 background compositing, and the visitor's selected effect. Export contains the processed image without metadata or an endorsement claim.
 
-Preset tiles are temporary typographic swatches. Actual preset thumbnails and the complete preset gallery belong to Ticket 8. UI typography uses local system fonts. Lucide React icons use the ISC license. Branding and layout are original to this project.
+The six fixed preset thumbnails are bundled as `src/assets/preset-{terminal,vintage-dither,ink,mosaic,blueprint,newsprint}.jpg`. Each is 480 × 288 pixels and rendered from the urban sample through `src/rendering/image.worker.ts`, using the corresponding final definition in `src/definitions/effects.ts`. The generator calls the production worker's PNG export path, composites onto the same #F4F1E8 background, scales to the gallery's shared 5:3 crop, and encodes JPEG at quality 0.84. Run `npm run generate:preset-thumbnails` to regenerate them with the locally installed Google Chrome; the command uses isolated ports 4178 and 9418 and adds no runtime dependency. The six outputs have distinct SHA-256 hashes and total 334,019 bytes. Dynamic thumbnails for the selected image are not used.
+
+UI typography uses local system fonts. Lucide React icons use the ISC license. Branding and layout are original to this project.
 
 ## Terminal glyph atlas
 

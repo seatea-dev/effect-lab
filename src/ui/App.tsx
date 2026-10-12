@@ -73,10 +73,10 @@ export function App() {
         <div className="section-heading preset-heading"><h3>Presets</h3><span>CURATED</span></div>
         <div className="preset-list">
           {presets.map((preset) => (
-            <button key={preset.id} className={`preset-card ${session.presetId === preset.id ? 'selected' : ''}`} aria-pressed={session.presetId === preset.id} disabled={unavailable} onClick={() => send({ type: 'preset', id: preset.id })}>
-              <span className={`ink-swatch ${preset.effectId === 'ascii' ? 'terminal-swatch' : preset.effectId === 'dither' ? 'vintage-swatch' : preset.effectId === 'pixelation' ? 'mosaic-swatch' : preset.effectId === 'edge' ? 'blueprint-swatch' : preset.effectId === 'halftone' ? 'newsprint-swatch' : ''}`} aria-hidden="true"><span />{preset.effectId === 'ascii' ? 'Te' : preset.effectId === 'dither' ? 'Dd' : preset.effectId === 'pixelation' ? 'Mx' : preset.effectId === 'edge' ? 'Bp' : preset.effectId === 'halftone' ? 'Nw' : 'Aa'}<span className="swatch-square" /></span>
-              <span className="preset-caption"><strong>{preset.name}</strong><span>{session.presetId === preset.id && <Check size={13} />}{preset.effectId === 'pixelation' ? '27 COLORS' : preset.effectId === 'ascii' ? 'GLYPH PRINT' : 'TWO TONES'}</span></span>
-            </button>
+              <button key={preset.id} className={`preset-card ${session.presetId === preset.id ? 'selected' : ''}`} aria-label={`Apply ${preset.name} preset`} aria-pressed={session.presetId === preset.id} disabled={unavailable} onClick={() => send({ type: 'preset', id: preset.id })}>
+                <img className="preset-thumbnail" src={preset.thumbnailUrl} alt="" width={480} height={288} />
+                <span className="preset-caption"><strong>{preset.name}</strong><span>{session.presetId === preset.id && <Check size={13} />}{preset.effectId === 'pixelation' ? '27 COLORS' : preset.effectId === 'ascii' ? 'GLYPH PRINT' : preset.effectId === 'dither' ? 'VINTAGE PRINT' : preset.effectId === 'edge' ? 'BLUEPRINT' : preset.effectId === 'halftone' ? 'NEWS PRINT' : 'TWO TONES'}</span></span>
+              </button>
           ))}
         </div>
         <div className="library-note"><span className="small-cross">+</span><p>Start with a style.<br />Make it your own.</p></div>

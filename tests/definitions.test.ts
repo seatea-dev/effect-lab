@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { validateDefinitions } from '../src/definitions/validate'
 import { effects as catalogEffects, presets as catalogPresets } from '../src/definitions/effects'
 import { blueprintPalette } from '../src/definitions/palettes'
@@ -14,8 +15,8 @@ const threshold = {
 }
 
 const effects = { threshold }
-const ink = { id: 'ink', name: 'Ink', effectId: 'threshold', params: { cutoff: 140, invert: false } }
-const secondPreset = { id: 'soft-ink', name: 'Soft Ink', effectId: 'threshold', params: { cutoff: 112, invert: true } }
+const ink = { id: 'ink', name: 'Ink', thumbnailUrl: '/test-ink.jpg', effectId: 'threshold', params: { cutoff: 140, invert: false } }
+const secondPreset = { id: 'soft-ink', name: 'Soft Ink', thumbnailUrl: '/test-soft-ink.jpg', effectId: 'threshold', params: { cutoff: 112, invert: true } }
 const dither = {
   id: 'dither',
   defaults: { contrast: 1, palette: 'ink' },
@@ -28,6 +29,20 @@ const dither = {
 
 test('validates the shipped definitions', () => {
   expect(() => validateDefinitions(catalogEffects, catalogPresets)).not.toThrow()
+})
+
+test('the six presets have unique IDs, complete definitions, and bundled thumbnail URLs', () => {
+  expect(catalogPresets).toHaveLength(6)
+  expect(new Set(catalogPresets.map(({ id }) => id)).size).toBe(6)
+  for (const preset of catalogPresets) {
+    expect(preset.thumbnailUrl).toMatch(/preset-[a-z-]+\.jpg$/)
+    expect(preset.thumbnailUrl).toContain(`preset-${preset.id}.jpg`)
+    const asset = readFileSync(new URL(`../src/assets/preset-${preset.id}.jpg`, import.meta.url))
+    expect(asset.subarray(0, 3).toString('hex')).toBe('ffd8ff')
+    expect(asset.length).toBeGreaterThan(10_000)
+    expect(preset.effectId).toBeTruthy()
+    expect(Object.keys(preset.params).length).toBeGreaterThan(0)
+  }
 })
 
 test('Terminal provides the approved ASCII defaults, controls, and preset values', () => {
@@ -67,8 +82,12 @@ test('allows multiple presets for one effect', () => {
   expect(() => validateDefinitions(effects, [ink, secondPreset])).not.toThrow()
 })
 
+test('rejects presets without a bundled thumbnail URL', () => {
+  expect(() => validateDefinitions(effects, [{ ...ink, thumbnailUrl: '' }])).toThrow(/thumbnail URL/)
+})
+
 test('accepts a numeric step and enum values in a preset', () => {
-  const preset = { id: 'vintage', name: 'Vintage', effectId: 'dither', params: { contrast: 1.2, palette: 'vintage' } }
+  const preset = { id: 'vintage', name: 'Vintage', thumbnailUrl: '/test-vintage.jpg', effectId: 'dither', params: { contrast: 1.2, palette: 'vintage' } }
   expect(() => validateDefinitions({ dither }, [preset])).not.toThrow()
 })
 
@@ -90,7 +109,7 @@ test('rejects duplicate effect IDs in the registry', () => {
 })
 
 test('rejects preset values outside an enum', () => {
-  const preset = { id: 'vintage', name: 'Vintage', effectId: 'dither', params: { contrast: 1, palette: 'blueprint' } }
+  const preset = { id: 'vintage', name: 'Vintage', thumbnailUrl: '/test-vintage.jpg', effectId: 'dither', params: { contrast: 1, palette: 'blueprint' } }
   expect(() => validateDefinitions({ dither }, [preset])).toThrow(/allowed value/)
 })
 
