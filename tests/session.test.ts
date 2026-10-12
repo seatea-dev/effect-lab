@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest'
 import { createSession, isModified, sessionReducer } from '../src/session/state'
+import { presets } from '../src/definitions/effects'
 
 const acceptSource = (state: ReturnType<typeof createSession>, id: string) => {
   const pending = sessionReducer(state, { type: 'source', id })
@@ -65,6 +66,19 @@ test('Mosaic applies Pixelation settings without changing the source and reports
     parametersByEffect: { pixelation: { blockSize: 20, colorCount: 27 } },
   })
   expect(isModified(session)).toBe(false)
+})
+
+test('every preset applies its full definition without changing the selected source', () => {
+  for (const preset of presets) {
+    const source = `source-for-${preset.id}`
+    const selected = sessionReducer(createSession(source), { type: 'preset', id: preset.id })
+    expect(selected.sourceId).toBe(source)
+    expect(selected.pendingSourceId).toBeNull()
+    expect(selected.effectId).toBe(preset.effectId)
+    expect(selected.presetId).toBe(preset.id)
+    expect(selected.parametersByEffect[preset.effectId]).toEqual(preset.params)
+    expect(isModified(selected)).toBe(false)
+  }
 })
 
 test('Blueprint applies edge settings, remains associated while edited, and resets cleanly', () => {

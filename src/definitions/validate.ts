@@ -16,6 +16,7 @@ type EffectDefinition = {
 type PresetDefinition = {
   id: string
   name: string
+  thumbnailUrl: string
   effectId: string
   params: Record<string, unknown>
 }
@@ -80,6 +81,7 @@ export function validateDefinitions(
     if (typeof preset.id !== 'string' || !preset.id.trim() || presetIds.has(preset.id)) fail(`preset ID "${preset.id}" is empty or duplicated`)
     presetIds.add(preset.id)
     if (typeof preset.name !== 'string' || !preset.name.trim()) fail(`preset "${preset.id}" needs a name`)
+    if (typeof preset.thumbnailUrl !== 'string' || !preset.thumbnailUrl.trim()) fail(`preset "${preset.id}" needs a bundled thumbnail URL`)
     const effect = effects[preset.effectId]
     if (!Object.hasOwn(effects, preset.effectId) || !effect || effect.id !== preset.effectId) {
       fail(`preset "${preset.id}" references unknown effect "${preset.effectId}"`)

@@ -9,6 +9,12 @@ import type { DitherParams } from '../effects/dither'
 import type { PixelationParams } from '../effects/pixelation'
 import type { AsciiParams } from '../effects/ascii'
 import { validateDefinitions } from './validate'
+import terminalThumbnail from '../assets/preset-terminal.jpg'
+import vintageThumbnail from '../assets/preset-vintage-dither.jpg'
+import inkThumbnail from '../assets/preset-ink.jpg'
+import mosaicThumbnail from '../assets/preset-mosaic.jpg'
+import blueprintThumbnail from '../assets/preset-blueprint.jpg'
+import newsprintThumbnail from '../assets/preset-newsprint.jpg'
 
 export const effects = {
   ascii: {
@@ -72,32 +78,32 @@ export const effects = {
   },
 }
 
-export type PresetDefinition = { id: string; name: string } & EffectSelection
+export type PresetDefinition = { id: string; name: string; thumbnailUrl: string } & EffectSelection
 
 export const vintageDitherPreset = {
-  id: 'vintage-dither', name: 'Vintage Dither', effectId: 'dither', params: { contrast: 1.2, palette: 'vintage' },
+  id: 'vintage-dither', name: 'Vintage Dither', thumbnailUrl: vintageThumbnail, effectId: 'dither', params: { contrast: 1.2, palette: 'vintage' },
 } satisfies PresetDefinition
 
 export const mosaicPreset = {
-  id: 'mosaic', name: 'Mosaic', effectId: 'pixelation', params: { blockSize: 20, colorCount: 27 },
+  id: 'mosaic', name: 'Mosaic', thumbnailUrl: mosaicThumbnail, effectId: 'pixelation', params: { blockSize: 20, colorCount: 27 },
 } satisfies PresetDefinition
 
 export const blueprintPreset = {
-  id: 'blueprint', name: 'Blueprint', effectId: 'edge', params: { sensitivity: 60, invert: false },
+  id: 'blueprint', name: 'Blueprint', thumbnailUrl: blueprintThumbnail, effectId: 'edge', params: { sensitivity: 60, invert: false },
 } satisfies PresetDefinition
 
 export const newsprintPreset = {
-  id: 'newsprint', name: 'Newsprint', effectId: 'halftone', params: { spacing: 8, contrast: 1.15, palette: 'ink' },
+  id: 'newsprint', name: 'Newsprint', thumbnailUrl: newsprintThumbnail, effectId: 'halftone', params: { spacing: 8, contrast: 1.15, palette: 'ink' },
 } satisfies PresetDefinition
 
 export const terminalPreset = {
-  id: 'terminal', name: 'Terminal', effectId: 'ascii', params: { characterHeight: 20, contrast: 1.25, palette: 'terminal' },
+  id: 'terminal', name: 'Terminal', thumbnailUrl: terminalThumbnail, effectId: 'ascii', params: { characterHeight: 20, contrast: 1.25, palette: 'terminal' },
 } satisfies PresetDefinition
 
 export const presets: readonly PresetDefinition[] = [
   terminalPreset,
   vintageDitherPreset,
-  { id: 'ink', name: 'Ink', effectId: 'threshold', params: { cutoff: 140, invert: false } },
+  { id: 'ink', name: 'Ink', thumbnailUrl: inkThumbnail, effectId: 'threshold', params: { cutoff: 140, invert: false } },
   mosaicPreset,
   blueprintPreset,
   newsprintPreset,

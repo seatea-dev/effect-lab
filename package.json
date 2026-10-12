@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:gallery-browser": "node scripts/test-preset-gallery-browser.mjs",
+    "generate:preset-thumbnails": "node scripts/generate-preset-thumbnails.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
