@@ -111,6 +111,52 @@ test('an unresolved obsolete sample fetch does not block the latest selection', 
   expect(messages.some((message) => message.type === 'preview' && [1, 2].includes(message.request.requestId))).toBe(false)
 })
 
+test('each worker preview carries a transferred original from the cached prepared source', async () => {
+  const transferred: Transferable[][] = []
+  const scope = {
+    onmessage: null as ((event: MessageEvent<ClientMessage>) => void) | null,
+    postMessage: (message: WorkerMessage, transfer?: Transferable[]) => {
+      messages.push(message)
+      if (message.type === 'preview') transferred.push(transfer ?? [])
+    },
+  }
+  const fetch = vi.fn(async () => new Response(new Blob(['image']), { status: 200 }))
+  const bitmaps: ImageBitmap[] = []
+  vi.stubGlobal('self', scope)
+  vi.stubGlobal('OffscreenCanvas', Canvas)
+  vi.stubGlobal('ImageData', class { constructor(public data: Uint8ClampedArray, public width: number, public height: number) {} })
+  vi.stubGlobal('createImageBitmap', async (source: Blob | OffscreenCanvas) => {
+    const bitmap = { width: source instanceof Blob ? 8 : source.width, height: source instanceof Blob ? 4 : source.height, close() {} } as ImageBitmap
+    bitmaps.push(bitmap)
+    return bitmap
+  })
+  vi.stubGlobal('fetch', fetch)
+
+  await import('../src/rendering/image.worker')
+  receive = scope.onmessage
+  receive!({ data: { type: 'hello', instanceId: 'test-worker' } } as MessageEvent<ClientMessage>)
+  await vi.waitFor(() => expect(messages.some((message) => message.type === 'ready')).toBe(true))
+
+  const source = { id: 'urban', url: '/urban.jpg' }
+  const first = { revision: 1, source, effectId: 'threshold' as const, params: { cutoff: 140, invert: false } }
+  receive!({ data: { type: 'invalidate', instanceId: 'test-worker', revision: 1, source } } as MessageEvent<ClientMessage>)
+  receive!({ data: { ...first, type: 'render' as const, instanceId: 'test-worker', requestId: 1, kind: 'preview' as const } } as MessageEvent<ClientMessage>)
+  await vi.waitFor(() => expect(messages.some((message) => message.type === 'preview' && message.request.requestId === 1)).toBe(true))
+
+  const firstReply = messages.find((message): message is Extract<WorkerMessage, { type: 'preview' }> => message.type === 'preview')!
+  expect(firstReply.originalBitmap.width).toBe(firstReply.bitmap.width)
+  expect(firstReply.originalBitmap.height).toBe(firstReply.bitmap.height)
+  expect(transferred[0]).toContain(firstReply.bitmap)
+  expect(transferred[0]).toContain(firstReply.originalBitmap)
+
+  const second = { ...first, revision: 2, params: { cutoff: 160, invert: false } }
+  receive!({ data: { type: 'invalidate', instanceId: 'test-worker', revision: 2, source } } as MessageEvent<ClientMessage>)
+  receive!({ data: { ...second, type: 'render' as const, instanceId: 'test-worker', requestId: 2, kind: 'preview' as const } } as MessageEvent<ClientMessage>)
+  await vi.waitFor(() => expect(messages.some((message) => message.type === 'preview' && message.request.requestId === 2)).toBe(true))
+  expect(fetch).toHaveBeenCalledOnce()
+  expect(bitmaps).toHaveLength(5) // source decode, then two processed/original pairs
+})
+
 test('a stale halftone preview is discarded after cooperative dot drawing yields', async () => {
   const scope = {
     onmessage: null as ((event: MessageEvent<ClientMessage>) => void) | null,

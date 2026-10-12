@@ -20,7 +20,7 @@ const scope = self as unknown as {
 let instanceId = ''
 let latestRevision = 0
 let desiredSource: RenderSnapshot['source'] | undefined
-let prepared: { source: RenderSnapshot['source']; sizes: ImageSizes; pixels: Uint8ClampedArray; thumbnail?: Blob } | undefined
+let prepared: { source: RenderSnapshot['source']; sizes: ImageSizes; pixels: Uint8ClampedArray; originalCanvas: OffscreenCanvas; thumbnail?: Blob } | undefined
 let processed: { key: string; canvas: OffscreenCanvas } | { key: string; pixelation: PixelationPlan } | { key: string; halftone: HalftonePlan } | { key: string; ascii: AsciiPlan } | undefined
 let running = false
 let activeAbortController: AbortController | undefined
@@ -87,7 +87,7 @@ async function prepare(request: RenderRequest, signal: AbortSignal) {
       thumbnail = await small.output.convertToBlob({ type: 'image/jpeg', quality: 0.8 })
       if (!sameSource(request.source, desiredSource)) return undefined
     }
-    prepared = { source: request.source, sizes, pixels, thumbnail }
+    prepared = { source: request.source, sizes, pixels, originalCanvas: output, thumbnail }
     processed = undefined
     return prepared
   } finally {
@@ -196,7 +196,11 @@ async function process(request: RenderRequest, abortController: AbortController)
         bitmap = await createImageBitmap(processed.canvas)
       }
       if (!isCurrent(request)) { bitmap.close(); scope.postMessage({ type: 'cancelled', request }); return }
-      scope.postMessage({ type: 'preview', request, sizes: image.sizes, bitmap, thumbnail: image.thumbnail, elapsedMs: performance.now() - started }, [bitmap])
+      let originalBitmap: ImageBitmap
+      try { originalBitmap = await createImageBitmap(image.originalCanvas) }
+      catch (error) { bitmap.close(); throw error }
+      if (!isCurrent(request)) { bitmap.close(); originalBitmap.close(); scope.postMessage({ type: 'cancelled', request }); return }
+      scope.postMessage({ type: 'preview', request, sizes: image.sizes, bitmap, originalBitmap, thumbnail: image.thumbnail, elapsedMs: performance.now() - started }, [bitmap, originalBitmap])
     } else {
       const { width, height } = image.sizes.export
       const { output, context } = canvas(width, height)

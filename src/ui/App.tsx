@@ -11,8 +11,10 @@ const dimensions = (size: { width: number; height: number }) => `${size.width.to
 
 export function App() {
   const canvas = useRef<HTMLCanvasElement>(null)
+  const originalCanvas = useRef<HTMLCanvasElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
-  const { session, render, displaySource, retainedUpload, send, upload, retry, exportPng } = useStudio(canvas)
+  const { session, render, displaySource, comparisonSourceId, retainedUpload, send, upload, retry, exportPng } = useStudio(canvas, originalCanvas)
+  const [showOriginal, setShowOriginal] = useState(false)
   const sourceAnnouncementPending = useRef(true)
   const [imageStatus, setImageStatus] = useState('Loading image.')
   const selectedSourceId = session.pendingSourceId ?? session.sourceId
@@ -36,6 +38,22 @@ export function App() {
   const unavailable = render.phase === 'starting' || render.phase === 'error'
   const modified = isModified(session)
   const selectedPreset = presets.find((preset) => preset.id === session.presetId)
+  const comparisonReady = !session.pendingSourceId && comparisonSourceId === session.sourceId
+
+  useEffect(() => {
+    if (!comparisonReady) setShowOriginal(false)
+  }, [comparisonReady])
+
+  useEffect(() => {
+    const release = () => setShowOriginal(false)
+    const visibilityChanged = () => { if (document.hidden) release() }
+    window.addEventListener('blur', release)
+    document.addEventListener('visibilitychange', visibilityChanged)
+    return () => {
+      window.removeEventListener('blur', release)
+      document.removeEventListener('visibilitychange', visibilityChanged)
+    }
+  }, [])
 
   useEffect(() => {
     if (session.pendingSourceId) {
@@ -88,7 +106,23 @@ export function App() {
         <div className="workspace-heading"><div><span className="eyebrow">YOUR CANVAS</span><h1 title={displaySource.name}>{displaySource.name}</h1></div><span className="sample-tag">{displaySource.subject.toUpperCase()}</span></div>
         <div className="preview-stage" aria-busy={busy}>
           <div className="registration registration-tl" /><div className="registration registration-tr" /><div className="registration registration-bl" /><div className="registration registration-br" />
-          <canvas ref={canvas} className={`preview ${render.sizes ? 'visible' : ''}`} width={1200} height={720} aria-label={`${displaySource.name}, processed with ${effect.name}`} />
+          <canvas ref={originalCanvas} className={`preview ${render.sizes ? 'visible' : ''}`} hidden={!showOriginal} width={1200} height={720} aria-hidden="true" />
+          <canvas ref={canvas} className={`preview ${render.sizes ? 'visible' : ''}`} hidden={showOriginal} width={1200} height={720} aria-label={`${displaySource.name}, processed with ${effect.name}`} />
+          <button className="compare-button" type="button" aria-pressed={showOriginal} disabled={!comparisonReady} onPointerDown={(event) => {
+            if (!event.isPrimary || event.button !== 0) return
+            event.currentTarget.setPointerCapture(event.pointerId)
+            setShowOriginal(true)
+          }} onPointerUp={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+            setShowOriginal(false)
+          }} onPointerCancel={() => setShowOriginal(false)} onLostPointerCapture={() => setShowOriginal(false)} onKeyDown={(event) => {
+            if (event.key !== ' ' && event.key !== 'Enter') return
+            event.preventDefault()
+            if (event.repeat) return
+            setShowOriginal(true)
+          }} onKeyUp={(event) => {
+            if (event.key === ' ' || event.key === 'Enter') setShowOriginal(false)
+          }} onBlur={() => setShowOriginal(false)}>Show Original</button>
           {!render.sizes && <div className="preview-placeholder"><Contrast size={36} strokeWidth={1} /><p>{render.phase === 'error' ? 'Your canvas is waiting.' : 'Preparing your canvas.'}</p></div>}
           {busy && <div className="render-indicator"><LoaderCircle className="spin" size={14} />{render.phase === 'starting' ? 'Preparing image' : 'Updating preview'}</div>}
         </div>
