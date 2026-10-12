@@ -13,7 +13,7 @@ This closeout review covers the complete Imprint application on `feature/10-rele
 | `npm test` | Passed; 125 tests across 13 files |
 | `npm run build` | Passed; production assets emitted with `/effect-lab/` base |
 | `npm run test:gallery-browser` | Passed; pointer access, resets, source preservation, PNG signature, and dimensions read from the PNG header at the documented desktop sizes. It does not decode export pixels. |
-| `BASE_URL=http://127.0.0.1:4193/effect-lab/ NODE_PATH=/Users/ctelang/Development/auto-apply/node_modules node tests/browser/live-region.mjs` | Passed in Chrome; source-only live-region announcements remained stable through effects and errors |
+| `BASE_URL=http://127.0.0.1:4193/effect-lab/ NODE_PATH="$PLAYWRIGHT_NODE_MODULES" node tests/browser/live-region.mjs` | Passed in Chrome; source-only live-region announcements remained stable through effects and errors |
 | `git diff --check` | Passed |
 
 GitHub Actions on the latest `main` commit (`ac75c433`) completed successfully. The repository is still private and `main` remains the default branch. In `.github/workflows/ci.yml`, both the Pages artifact and deploy jobs have `if: ${{ false }}`. No PR or main build can publish while those jobs are disabled; a live failing-check deployment test was not run because deployment is intentionally unavailable.

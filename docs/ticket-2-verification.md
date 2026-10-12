@@ -1,5 +1,7 @@
 # Ticket 2 verification
 
+Local filesystem locations in this historical record are generalized as `temporary-artifacts/`. These labels identify external review artifacts, not files included in the repository.
+
 Branch: feature/2-vintage-dither. Base: main at 0d5f257635ac6c70e78b97ee40e016f9f3295aa6. Implementation remains uncommitted. Independent Sol review and final human approval are pending.
 
 ## Local checks
@@ -21,7 +23,7 @@ Coverage was not measured. TDD red/green cycles covered the first hand-calculate
 
 ## Chrome verification
 
-Production build under /effect-lab/, Chrome 154.0.8037.99. Scripts use the existing Playwright installation in /Users/ctelang/Development/auto-apply/node_modules. No browser-test dependency was added.
+Production build under /effect-lab/, Chrome 154.0.8037.99. Scripts used an external Playwright installation. No browser-test dependency was added.
 
 - Startup and reload select the urban sample and Vintage Dither at contrast 1.2 with the Vintage palette. Reload reproduces the same raster.
 - Keyboard contrast, all three palette choices, Modified state, effect switching, per-effect values, and both reset actions passed.
@@ -35,20 +37,11 @@ Production build under /effect-lab/, Chrome 154.0.8037.99. Scripts use the exist
 
 ## Evidence and rerun
 
-Temporary evidence: /private/tmp/effect-lab-ticket-2-evidence
+Temporary evidence: temporary-artifacts/effect-lab-ticket-2-evidence
 
 Files: browser-results.json, retry-results.json, batch-results.json, desktop-1440.png, desktop-1280.png, vintage-dither.png, recovered.png.
 
-With the production preview on port 4185:
-
-```sh
-npm run preview -- --host 127.0.0.1 --port 4185 --strictPort
-node /private/tmp/effect-lab-ticket-2-evidence/browser-check.mjs
-node /private/tmp/effect-lab-ticket-2-evidence/retry-check.mjs
-node /private/tmp/effect-lab-ticket-2-evidence/batch-check.mjs
-```
-
-The scripts require installed Chrome and the existing local Playwright installation. Localhost serving and browser launch needed command approval. Firefox, Safari, Edge, Node 24, and Linux CI were not exercised in this ticket. Complete cross-browser release checks remain in Ticket 10.
+These files were temporary review artifacts and are not repository test commands. The checks used installed Chrome and an external Playwright installation. Firefox, Safari, Edge, Node 24, and Linux CI were not exercised in this ticket.
 
 ## Review notes
 

@@ -1,64 +1,91 @@
 # Imprint
 
-A browser-based digital print studio and personal portfolio project.
+A browser-based digital print studio that turns photographs into pixel, ink, dot, and character patterns.
 
-Imprint opens on a bundled city photograph with Vintage Dither already applied. Choose among five bundled samples or upload a JPEG, PNG, or WebP image up to 20 MB. Explore six effects and six curated presets, adjust their controls, and use the press-and-hold Show Original comparison. Export a PNG on your device; images over 12 megapixels are downscaled proportionally and identified before export. The application has no account, backend, or external image service.
+Planned live demo: [seatea-dev.github.io/effect-lab](https://seatea-dev.github.io/effect-lab/). Publication is pending approval; this link is not yet verified live.
 
-## Run locally
+## Preview
 
-Use Node 24 or newer and npm. Node 24 is the CI baseline.
+![Imprint showing a dithered photograph, presets, image sources, and parameter controls](docs/screenshots/imprint-preview.webp)
+
+## Features
+
+- Six effects: Terminal ASCII, Floyd-Steinberg dithering, Threshold, Pixelation, Edge Detection, and Halftone.
+- Six curated presets and five bundled sample images.
+- JPEG, PNG, and WebP uploads up to 20,000,000 bytes. Images stay on your device.
+- Live parameter controls, independent effect settings, and separate effect and preset resets.
+- Hold-to-Compare with pointer, Space, or Enter input.
+- Opaque PNG export at source dimensions, with proportional downscaling above 12 megapixels.
+
+## Tech stack
+
+React, TypeScript, Vite, Tailwind CSS, Lucide React, and Vitest. Image processing uses Canvas, OffscreenCanvas, ImageBitmap, and a Web Worker.
+
+## How it works
+
+A dedicated worker decodes and prepares each source, then processes an analysis image with a maximum 1200-pixel edge. The main thread displays accepted original and processed images. Request revisions prevent obsolete results from replacing newer selections.
+
+Pixelation, Halftone, and Terminal ASCII draw the same analyzed geometry at preview and export sizes. The other effects scale the processed raster without smoothing. Export does not recover photographic detail beyond the analysis image. Comparison changes only the displayed image, so it does not rerender effects or change the PNG.
+
+## Getting started
+
+Use Node.js 24 or newer and npm. CI uses Node.js 24.
 
 ```sh
+git clone https://github.com/seatea-dev/effect-lab.git
+cd effect-lab
 npm ci
 npm run dev
 ```
 
-Open the URL printed by Vite, including `/effect-lab/`.
+Open the Vite URL with the `/effect-lab/` path. The repository requires access until its visibility changes to public.
+
+```sh
+npm run build
+npm run preview
+```
+
+No API keys, environment variables, accounts, or backend services are required by the application.
+
+## Testing
 
 ```sh
 npm run typecheck
 npm run lint
 npm test
 npm run build
-npm run preview
+git diff --check
+npm run test:gallery-browser
 ```
 
-The production build is configured for the `/effect-lab/` subpath. GitHub Pages deployment remains disabled, so the application is not published there. No environment variables, API keys, accounts, or backend are needed.
+The gallery regression uses an installed Google Chrome and tests real pointer input at three desktop sizes, resets, source preservation, and PNG signature and header dimensions. Run it after the build. Set `CHROME_BIN` if Chrome is installed elsewhere.
 
-## Architecture
+The live-region regression needs Chrome and a separately installed Playwright package. Set `PLAYWRIGHT_NODE_MODULES` to the directory containing that installation, start the production preview in another terminal, then run:
 
-- `src/effects` contains deterministic pixel processing.
-- `src/definitions` contains effects, preset values, palette colors, and sample metadata.
-- `src/session` contains source-preserving parameter and reset transitions.
-- `src/rendering` contains sizing policy, the worker protocol, one rendering controller, and the image worker.
-- `src/ui` contains the desktop workspace and its React binding.
+```sh
+NODE_PATH="$PLAYWRIGHT_NODE_MODULES" BASE_URL=http://127.0.0.1:4173/effect-lab/ node tests/browser/live-region.mjs
+```
 
-The worker prepares each selected source once, using a maximum 1200-pixel analysis edge. Pixelation, Newsprint, and Terminal ASCII retain their analyzed cells and draw that geometry at both preview and export dimensions. Threshold, Floyd-Steinberg, and Blueprint render from the analysis raster and scale to export without smoothing. PNG export preserves the source aspect ratio, uses an opaque light background, and is capped at 12 megapixels for this release. It does not add photographic detail beyond the analysis image.
+Vitest covers algorithms, definitions, session transitions, image sizing, cancellation, and worker/controller responses. [Release verification](docs/ticket-10-verification.md) records additional browser checks of actual decoded PNG pixels.
 
-The controller allows one running request and one replaceable pending preview. Setting changes invalidate running results synchronously. Dither carries floating-point diffusion errors across row batches in one resumable job. The worker yields between row batches, and both sides reject results from obsolete revisions or requests. PNG results receive the same checks after encoding and before download. There is no worker pool, render graph, or persistent cache.
+## Browser support
 
-The application needs module workers, bitmap decoding, and OffscreenCanvas 2D/PNG support. A startup handshake checks the worker's actual capabilities. Unsupported environments show a recoverable explanation. Ticket 10 verified the production build in Chrome 154 under `/effect-lab/`. Safari 27 was installed but could not be automated in this environment, so Safari and other engines are not claimed as verified. Only browsers actually tested should be claimed as verified.
+Chrome 154 is independently verified. Safari, Edge, and Firefox remain unverified. The application checks required worker and canvas capabilities at startup.
 
-The sample and asset licenses are documented in [asset credits](docs/assets.md). Product scope is in [product decisions](docs/product-decisions.md); technical contracts and acceptance criteria are in [the specification](docs/spec.md).
+## Known limitations
 
-## Tests and review
+- The desktop layout has a minimum width of 1100 pixels. Mobile editing is outside the current scope.
+- Blueprint and Newsprint exceeded the 200 ms preview engineering target in recorded tests. Their reported medians were 237.7 ms and 208.1 ms. Results depend on image, settings, and machine; this target is not a response-time guarantee.
+- PNG export is capped at 12 megapixels. Metadata and photographic detail beyond the analysis resolution are not preserved.
 
-Vitest tests the effect processor, session actions, sizing policy, and render-request/result boundary. Transport tests reorder responses without mocking the pixel algorithm. Real-browser verification must cover the worker, actual decoded PNG pixels/dimensions, error recovery, and production subpath assets. A mock transport test alone does not establish browser compatibility.
+## Credits and license
 
-`npm run test:gallery-browser` exercises real pointer access to all six preset cards at 1440 × 900, 1280 × 800, and 1100 × 800, including reset behavior, source preservation, and a PNG signature and dimensions read from its header. It does not decode export pixels. Run it after `npm run build`; it uses an installed Google Chrome and adds no package dependency. The full release audit and screenshots are recorded in [Ticket 10 verification](docs/ticket-10-verification.md).
+[Asset credits](docs/assets.md) list image sources, redistribution terms, thumbnail modifications, and the IBM Plex Mono glyph atlas license. Imprint uses local system fonts for its interface.
 
-Use one implementation agent and an issue-linked feature branch. Obtain approval of each ticket's brief plan before implementation. Use TDD at approved boundaries, run checks, and prepare a temporary handoff for independent code review in a fresh Sol session. Address blockers before final approval. The user switches models manually.
+No application source-code license has been selected. Making the repository public does not grant a general license to reuse the code. Bundled assets retain their documented licenses.
 
-Do not commit, push, create a PR, merge, or publish without the applicable final approval. Do not change global Herdr configuration or skills. Ignore rules do not remove already tracked planning artifacts from Git.
+## Deployment
 
-## CI and deployment
+GitHub Actions checks pull requests and main. The prepared Pages workflow deploys only a successful main build after the repository is public and its publication gate is enabled. Publication remains disabled during preparation.
 
-GitHub Actions runs typecheck, lint, Vitest, and the production build on PRs and pushes to main. The Pages artifact step and deployment job are explicitly disabled with `if: ${{ false }}`. Repository setup does not authorize publication.
-
-After separate publication approval and confirmation of private-repository Pages eligibility:
-
-1. Configure GitHub Pages to use GitHub Actions and the `github-pages` environment for main.
-2. Replace both disabled conditions with `github.event_name == 'push' && github.ref == 'refs/heads/main'` inside a GitHub expression.
-3. Review and approve that change before committing or merging. The deploy job uses the successful checked build, and PRs cannot publish.
-
-Vite uses `/effect-lab/` as its base. Asset imports and the worker URL follow that base. Keep the repository private; do not purchase services or change visibility automatically.
+See [public-release preparation](docs/public-release.md) for the approval gates, Pages settings, and verification steps.

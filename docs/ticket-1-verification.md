@@ -1,5 +1,7 @@
 # Ticket 1 verification
 
+Local filesystem locations in this historical record are generalized as `temporary-artifacts/`. These labels identify external review artifacts, not files included in the repository.
+
 Verified locally on 2026-10-09. Branch: `feature/1-image-to-png`. Comparison base: `207d0db0d9dd029ca5801d6f18a9d86147a40e4a`. Changes remain uncommitted and include untracked application files.
 
 ## Automated checks
@@ -8,7 +10,7 @@ Environment: macOS, Node 26.9.0, npm 11.19.1. Node 24 is the configured CI basel
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| `npm ci --offline --cache /private/tmp/effect-lab-npm-cache` | PASS | Clean lockfile installation, 154 packages. npm reported zero known vulnerabilities. |
+| `npm ci --offline --cache temporary-artifacts/effect-lab-npm-cache` | PASS | Clean lockfile installation, 154 packages. npm reported zero known vulnerabilities. |
 | `npm run typecheck` | PASS | TypeScript reported no errors. |
 | `npm run lint` | PASS | ESLint reported no errors or warnings. |
 | `npm test` | PASS | 33 tests in five files, including retry-state and worker-disposal regressions. Coverage was not measured. |
@@ -37,23 +39,15 @@ The production build ran at `http://127.0.0.1:4173/effect-lab/` in Chrome 154.0.
 
 Evidence is temporary, outside the repository:
 
-- `/private/tmp/effect-lab-ticket-1-evidence/browser-results.json`
-- `/private/tmp/effect-lab-ticket-1-evidence/browser-large-results.json`
-- `/private/tmp/effect-lab-ticket-1-evidence/desktop-1440.png`
-- `/private/tmp/effect-lab-ticket-1-evidence/desktop-1280.png`
-- `/private/tmp/effect-lab-ticket-1-evidence/sixth-avenue-ink.png`
-- `/private/tmp/effect-lab-ticket-1-evidence/near-cap.png`
-- `/private/tmp/effect-lab-retry-regression.mjs`
+- `temporary-artifacts/effect-lab-ticket-1-evidence/browser-results.json`
+- `temporary-artifacts/effect-lab-ticket-1-evidence/browser-large-results.json`
+- `temporary-artifacts/effect-lab-ticket-1-evidence/desktop-1440.png`
+- `temporary-artifacts/effect-lab-ticket-1-evidence/desktop-1280.png`
+- `temporary-artifacts/effect-lab-ticket-1-evidence/sixth-avenue-ink.png`
+- `temporary-artifacts/effect-lab-ticket-1-evidence/near-cap.png`
+- `temporary-artifacts/effect-lab-retry-regression.mjs`
 
-Rerun with the production preview running:
-
-```sh
-node /private/tmp/effect-lab-browser-check.mjs
-node /private/tmp/effect-lab-browser-large-check.mjs
-node /private/tmp/effect-lab-retry-regression.mjs
-```
-
-These scripts require the existing Playwright installation at `/Users/ctelang/Development/auto-apply/node_modules` and installed Chrome. They are local review tools, not portable project test infrastructure. Browser launch and localhost access required command approval in this environment.
+These files were temporary review artifacts and are not repository test commands. The checks used installed Chrome and an external Playwright installation without adding a project dependency.
 
 ## Pending review
 
